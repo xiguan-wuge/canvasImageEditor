@@ -1,0 +1,80 @@
+<!DOCTYPE html>  
+<html lang="en">  
+<head>  
+<meta charset="UTF-8">  
+<title>Resizable Rectangle on Canvas</title>  
+<style>  
+    canvas {  
+        border: 1px solid black;  
+    }  
+</style>  
+</head>  
+<body>  
+<canvas id="myCanvas" width="400" height="400"></canvas>  
+  
+<script>  
+    var canvas = document.getElementById('myCanvas');  
+    var ctx = canvas.getContext('2d');  
+  
+    var rect = {  
+        x: 100,  
+        y: 100,  
+        width: 100,  
+        height: 50,  
+        dragging: false,  
+        resizing: false,  
+        resizeHandleSize: 10  
+    };  
+  
+    function drawRectangle() {  
+        ctx.clearRect(0, 0, canvas.width, canvas.height);  
+        ctx.fillStyle = 'blue';  
+        ctx.fillRect(rect.x, rect.y, rect.width, rect.height);  
+  
+        // 绘制右下角的手柄  
+        ctx.fillStyle = 'red';  
+        ctx.fillRect(rect.x + rect.width - rect.resizeHandleSize, rect.y + rect.height - rect.resizeHandleSize, rect.resizeHandleSize, rect.resizeHandleSize);  
+    }  
+  
+    function handleMouseDown(e) {  
+        var mouseX = e.offsetX;  
+        var mouseY = e.offsetY;  
+  
+        // 检查鼠标是否在右下角手柄上  
+        if (mouseX > rect.x + rect.width - rect.resizeHandleSize &&  
+            mouseX < rect.x + rect.width &&  
+            mouseY > rect.y + rect.height - rect.resizeHandleSize &&  
+            mouseY < rect.y + rect.height) {  
+            rect.resizing = true;  
+        }  
+    }  
+  
+    function handleMouseMove(e) {  
+        if (rect.resizing) {  
+            var mouseX = e.offsetX;  
+            var mouseY = e.offsetY;  
+  
+            // 更新矩形大小  
+            rect.width = mouseX - rect.x;  
+            rect.height = mouseY - rect.y;  
+  
+            // 限制最小大小（可选）  
+            if (rect.width < 20) rect.width = 20;  
+            if (rect.height < 20) rect.height = 20;  
+  
+            drawRectangle();  
+        }  
+    }  
+  
+    function handleMouseUp(e) {  
+        rect.resizing = false;  
+    }  
+  
+    canvas.addEventListener('mousedown', handleMouseDown);  
+    canvas.addEventListener('mousemove', handleMouseMove);  
+    canvas.addEventListener('mouseup', handleMouseUp);  
+  
+    drawRectangle(); // 初始绘制矩形  
+</script>  
+</body>  
+</html>

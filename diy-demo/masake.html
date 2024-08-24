@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Canvas Mosaic Effect with Mouse Drag</title>
+    <style>
+        #mosaicCanvas {
+            border: 1px solid black;
+            cursor: crosshair;
+        }
+    </style>
+</head>
+<body>
+<canvas id="mosaicCanvas" width="800" height="600"></canvas>
+<script>
+    const imageSrc = 'https://cdn.pixabay.com/photo/2024/01/02/10/33/stream-8482939_1280.jpg'; // 替换为你要使用的图片路径
+    const blockSize = 10; // 每个马赛克块的大小
+
+    const canvas = document.getElementById('mosaicCanvas');
+    const ctx = canvas.getContext('2d');
+    let isDrawing = false;
+    let startX, startY;
+
+    const img = new Image();
+    img.crossOrigin = "Anonymous"; // 允许跨域访问
+    img.src = imageSrc;
+
+    img.onload = function() {
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    };
+
+    function applyMosaic(x, y, width, height) {
+        const imageData = ctx.getImageData(x, y, width, height);
+        const data = imageData.data;
+
+        for (let row = 0; row < height; row += blockSize) {
+            for (let col = 0; col < width; col += blockSize) {
+                let red = 0, green = 0, blue = 0;
+                let pixelCount = 0;
+
+                for (let dy = 0; dy < blockSize; dy++) {
+                    for (let dx = 0; dx < blockSize; dx++) {
+                        const pixelX = col + dx;
+                        const pixelY = row + dy;
+                        if (pixelX < width && pixelY < height) {
+                            const index = (pixelY * width + pixelX) * 4;
+                            red += data[index];
+                            green += data[index + 1];
+                            blue += data[index + 2];
+                            pixelCount++;
+                        }
+                    }
+                }
+
+                red = Math.floor(red / pixelCount);
+                green = Math.floor(green / pixelCount);
+                blue = Math.floor(blue / pixelCount);
+
+                for (let dy = 0; dy < blockSize; dy++) {
+                    for (let dx = 0; dx < blockSize; dx++) {
+                        const pixelX = col + dx;
+                        const pixelY = row + dy;
+                        if (pixelX < width && pixelY < height) {
+                            const index = (pixelY * width + pixelX) * 4;
+                            data[index] = red;
+                            data[index + 1] = green;
+                            data[index + 2] = blue;
+                        }
+                    }
+                }
+            }
+        }
+
+        ctx.putImageData(imageData, x, y);
+    }
+
+    canvas.addEventListener('mousedown', function(e) {
+        isDrawing = true;
+        startX = e.offsetX;
+        startY = e.offsetY;
+    });
+
+    canvas.addEventListener('mousemove', function(e) {
+        if (isDrawing) {
+            const currentX = e.offsetX;
+            const currentY = e.offsetY;
+            const width = currentX - startX;
+            const height = currentY - startY;
+
+            // 重新绘制原始图像，防止叠加效果
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+            // 设置透明度，绘制一个选取区域的矩形框
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+            ctx.fillRect(startX, startY, width, height);
+        }
+    });
+
+    canvas.addEventListener('mouseup', function(e) {
+        if (isDrawing) {
+            const endX = e.offsetX;
+            const endY = e.offsetY;
+            isDrawing = false;
+
+            const width = endX - startX;
+            const height = endY - startY;
+
+            // 确保宽度和高度是正数
+            const rectX = Math.min(startX, endX);
+            const rectY = Math.min(startY, endY);
+            const rectWidth = Math.abs(width);
+            const rectHeight = Math.abs(height);
+
+            applyMosaic(rectX, rectY, rectWidth, rectHeight);
+        }
+    });
+
+    canvas.addEventListener('mouseleave', function() {
+        isDrawing = false;
+    });
+</script>
+</body>
+</html>

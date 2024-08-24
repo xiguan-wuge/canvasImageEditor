@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Canvas Image Mosaic</title>
+    <style>
+        canvas {
+            border: 1px solid black;
+            cursor: crosshair;
+        }
+        #controls {
+            margin-bottom: 10px;
+        }
+        #controls input {
+            margin-right: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div id="controls">
+        <label for="mosaicSize">Mosaic Size:</label>
+        <input type="number" id="mosaicSize" value="20" min="5" max="100">
+    </div>
+    <canvas id="myCanvas" width="800" height="600"></canvas>
+
+    <script>
+        const canvas = document.getElementById('myCanvas');
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        const image = new Image();
+        let isDrawing = false;
+        let mosaicSize = parseInt(document.getElementById('mosaicSize').value, 10);
+
+        // 加载图片
+        image.src = 'https://cdn.pixabay.com/photo/2024/01/02/10/33/stream-8482939_1280.jpg'; // 替换为你的图片路径
+        image.crossOrigin = 'Anonymous'; // 允许跨域访问
+        image.onload = () => {
+            ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+        };
+
+        // 更新马赛克方块大小
+        document.getElementById('mosaicSize').addEventListener('input', (e) => {
+            mosaicSize = parseInt(e.target.value, 10);
+        });
+
+        canvas.addEventListener('mousedown', () => {
+            isDrawing = true;
+        });
+
+        canvas.addEventListener('mouseup', () => {
+            isDrawing = false;
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            if (isDrawing) {
+                const rect = canvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                // console.log('x, y, mosaicSize', x, y, mosaicSize);
+                // 计算当前鼠标位置应该绘制的方块左上角坐标
+                const gridX = Math.floor(x / mosaicSize) * mosaicSize;
+                const gridY = Math.floor(y / mosaicSize) * mosaicSize;
+                // console.log('gridX, gridY', gridX, gridY);
+                // 使用 fillRect 绘制马赛克
+                applyMosaic(gridX, gridY, mosaicSize, mosaicSize);
+            }
+        });
+
+        // 使用 fillRect 绘制马赛克
+        function applyMosaic(x, y, width, height) {
+            const imageData = ctx.getImageData(x, y, width, height);
+            const data = imageData.data;
+
+            let r = 0, g = 0, b = 0, count = 0;
+
+            // 计算平均颜色
+            for (let i = 0; i < data.length; i += 4) {
+                r += data[i];
+                g += data[i + 1];
+                b += data[i + 2];
+                count++;
+            }
+            // console.log('rgb', r, g, b);
+
+            r = Math.floor(r / count);
+            g = Math.floor(g / count);
+            b = Math.floor(b / count);
+            // console.log('rgb2', r, g, b);
+
+            // 使用填充颜色
+            console.log('x, y, width, height', x, y, width, height);
+            ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+            ctx.fillRect(x, y, width, height);
+        }
+    </script>
+</body>
+</html>

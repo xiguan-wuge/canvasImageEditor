@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ellipse Edge Detection</title>
+    <style>
+        canvas {
+            border: 1px solid black;
+        }
+    </style>
+</head>
+<body>
+
+<canvas id="myCanvas" width="400" height="300"></canvas>
+
+<script>
+    // 椭圆的参数
+    const cx = 200, cy = 150; // 椭圆中心
+    const rx = 100, ry = 60;  // 椭圆的半轴
+
+    function drawEllipse(ctx) {
+        // 绘制椭圆
+        ctx.beginPath();
+        ctx.ellipse(cx, cy, rx, ry, 0, 0, 2 * Math.PI);
+        ctx.strokeStyle = 'blue';
+        ctx.stroke();
+    }
+
+    function isPointOnEllipseEdge(cx, cy, rx, ry, mouseX, mouseY, tolerance = 3) {
+        const dx = mouseX - cx;
+        const dy = mouseY - cy;
+
+        // 对鼠标坐标进行标准化
+        const normalizedX = dx / rx;
+        const normalizedY = dy / ry;
+
+        // 计算标准化后的距离
+        const distance = Math.sqrt(normalizedX ** 2 + normalizedY ** 2);
+
+        // 判断距离是否接近1，允许一个误差范围（tolerance）
+        return Math.abs(distance - 1) <= tolerance / Math.max(rx, ry);
+    }
+
+    document.getElementById('myCanvas').addEventListener('click', function(event) {
+        const rect = this.getBoundingClientRect();
+        const mouseX = event.clientX - rect.left;
+        const mouseY = event.clientY - rect.top;
+
+        const ctx = this.getContext('2d');
+        drawEllipse(ctx);
+
+        if (isPointOnEllipseEdge(cx, cy, rx, ry, mouseX, mouseY)) {
+            console.log("鼠标在椭圆边上");
+        } else {
+            console.log("鼠标不在椭圆边上");
+        }
+    });
+
+    // 初始绘制椭圆
+    const ctx = document.getElementById('myCanvas').getContext('2d');
+    drawEllipse(ctx);
+</script>
+
+</body>
+</html>

@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>判断是否在线段上</title>
+</head>
+<body>
+  <script>
+    function isPointOnThickLine(mx, my, x1, y1, x2, y2, lineWidth = 8) {
+    // 计算线段的向量
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+
+    // 计算线段长度的平方
+    const lengthSquared = dx * dx + dy * dy;
+
+    // 计算点到线段起点的向量
+    const t = ((mx - x1) * dx + (my - y1) * dy) / lengthSquared;
+
+    // 计算垂直投影的位置
+    const projectionX = x1 + t * dx;
+    const projectionY = y1 + t * dy;
+
+    // 计算点到线段的距离
+    const distance = Math.hypot(mx - projectionX, my - projectionY);
+
+    // 检查鼠标是否在带状区域内
+    const withinSegment = t >= 0 && t <= 1;
+
+    // 判断距离是否小于或等于线段的一半宽度
+    return distance <= lineWidth / 2 && withinSegment;
+}
+
+  </script>
+</body>
+</html>
