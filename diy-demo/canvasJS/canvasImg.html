@@ -66,127 +66,149 @@
 
     import CanvasImgEditor from './canvasImgEditor.js'
     // import CanvasImgEditor from './index.esm.js'
-
+    let imgSrc = 'https://cdn.pixabay.com/photo/2024/01/02/10/33/stream-8482939_1280.jpg' // 替换为你要使用的图片路径
+    // 模拟传入的是blob ，blob不好存储，先转换成base64存储到浏览器
+    // 使用方式：先使用链接下载图片，存储到浏览器，刷新页面
+    const blobImg = localStorage.getItem('blobImg')
+    if (blobImg) {
+      imgSrc = blobImg
+    }
     const canvasInstance = new CanvasImgEditor({
       parentId: 'canvas-wrapper',
       canvasId: 'canvasId',
-      imgSrc: 'https://cdn.pixabay.com/photo/2024/01/02/10/33/stream-8482939_1280.jpg', // 替换为你要使用的图片路径
+      imgSrc,
       currentTool: 'arrow', // 当前默认模式，默认为箭头
       currentWidth: 2, // 宽度，默认为2
       endPointWidth: 4, // 箭头、圆、矩形的端点宽度，默认为4
     })
     document.addEventListener('DOMContentLoaded', () => {
-    // 工具按钮设置
-    let currentTool = ''
-    const enlargeBtn = document.getElementById('enlargeBtn');
-    const reduceBtn = document.getElementById('reduceBtn');
-    const arrowButton = document.getElementById('drawArrowBtn');
-    const mosaicButton = document.getElementById('mosaicBtn');
-    const scribbleButton = document.getElementById('drawScribbleBtn');
-    const eraserButton = document.getElementById('eraser');
-    const textInputButton = document.getElementById('textInputBtn');
-    const rectButton = document.getElementById('rectBtn');
-    const circleButton = document.getElementById('circleBtn');
-    const undoButton = document.getElementById('undoBtn');
-    const redoButton = document.getElementById('redoBtn');
-    const downloadBtn = document.getElementById('downloadBtn');
-    const clearBtn = document.getElementById('clearBtn');
+      // 工具按钮设置
+      let currentTool = ''
+      const enlargeBtn = document.getElementById('enlargeBtn');
+      const reduceBtn = document.getElementById('reduceBtn');
+      const arrowButton = document.getElementById('drawArrowBtn');
+      const mosaicButton = document.getElementById('mosaicBtn');
+      const scribbleButton = document.getElementById('drawScribbleBtn');
+      const eraserButton = document.getElementById('eraser');
+      const textInputButton = document.getElementById('textInputBtn');
+      const rectButton = document.getElementById('rectBtn');
+      const circleButton = document.getElementById('circleBtn');
+      const undoButton = document.getElementById('undoBtn');
+      const redoButton = document.getElementById('redoBtn');
+      const downloadBtn = document.getElementById('downloadBtn');
+      const clearBtn = document.getElementById('clearBtn');
 
-    const colorNode = document.getElementById('fontColorPicker')
-    const strokeWidthNode = document.getElementById('strokeWidth')
-    const fontSizeNode = document.getElementById('fontSizeSelect')
+      const colorNode = document.getElementById('fontColorPicker')
+      const strokeWidthNode = document.getElementById('strokeWidth')
+      const fontSizeNode = document.getElementById('fontSizeSelect')
 
-    arrowButton.addEventListener('click', () => setTool('arrow'));
-    mosaicButton.addEventListener('click', () => setTool('mosaic'));
-    scribbleButton.addEventListener('click', () => setTool('scribble'));
-    eraserButton.addEventListener('click', () => setTool('eraser'));
-    textInputButton.addEventListener('click', () => setTool('text'));
-    rectButton.addEventListener('click', () => setTool('rect'));
-    circleButton.addEventListener('click', () => setTool('circle'));
-    undoButton.addEventListener('click', undo);
-    redoButton.addEventListener('click', redo);
-    clearBtn.addEventListener('click', clear);
-    downloadBtn.addEventListener('click', download);
-    enlargeBtn.addEventListener('click', enlarge);
-    reduceBtn.addEventListener('click', reduce);
+      arrowButton.addEventListener('click', () => setTool('arrow'));
+      mosaicButton.addEventListener('click', () => setTool('mosaic'));
+      scribbleButton.addEventListener('click', () => setTool('scribble'));
+      eraserButton.addEventListener('click', () => setTool('eraser'));
+      textInputButton.addEventListener('click', () => setTool('text'));
+      rectButton.addEventListener('click', () => setTool('rect'));
+      circleButton.addEventListener('click', () => setTool('circle'));
+      undoButton.addEventListener('click', undo);
+      redoButton.addEventListener('click', redo);
+      clearBtn.addEventListener('click', clear);
+      downloadBtn.addEventListener('click', download);
+      enlargeBtn.addEventListener('click', enlarge);
+      reduceBtn.addEventListener('click', reduce);
 
-    colorNode.addEventListener('change', changeColor)
-    changeColor()
+      colorNode.addEventListener('change', changeColor)
+      changeColor()
 
-    strokeWidthNode.addEventListener('input', changeStrokeWidth)
-    changeStrokeWidth()
+      strokeWidthNode.addEventListener('input', changeStrokeWidth)
+      changeStrokeWidth()
 
-    fontSizeNode.addEventListener('change', changeFontSize)
-    changeFontSize()
+      fontSizeNode.addEventListener('change', changeFontSize)
+      changeFontSize()
 
-    function setTool(tool) {
-      currentTool = tool
-      canvasInstance.setCurrentToolType(tool); // 设置当前操作类型
-      console.log('currentTool', tool);
-      arrowButton.classList.toggle('active', tool === 'arrow');
-      mosaicButton.classList.toggle('active', tool === 'mosaic');
-      scribbleButton.classList.toggle('active', tool === 'scribble');
-      eraserButton.classList.toggle('active', tool === 'eraser');
-      textInputButton.classList.toggle('active', tool === 'text');
-      rectButton.classList.toggle('active', tool === 'rect');
-      circleButton.classList.toggle('active', tool === 'circle');
-    }
-
-    function undo() {
-      canvasInstance.undo()
-    }
-    function redo() {
-      canvasInstance.redo()
-    }
-    function clear() {
-      canvasInstance.clear()
-    }
-    function download() {
-      const fileName = '这是自定义的文件名'
-      const isBlob = true // 是否返回blob
-      canvasInstance.download(false).then(res => {
-        console.log(`${isBlob ? '返回结果': '已下载'}`, res)
-      })
-    }
-    function changeColor() {
-      const colorValue = colorNode.value
-      console.log(`颜色值变化为：${colorValue}`)
-      canvasInstance.changeColor(colorValue)
-    }
-    function changeStrokeWidth() {
-      const value = strokeWidthNode.value
-      if(currentTool === 'text') {
-        console.log(`字体宽度变化为：${value}`)
-        canvasInstance.setTextFontWight(value)
-      } else {
-        console.log(`strokeWidth变化为：${value}`)
-        canvasInstance.changeStrokeWidth(value)
+      function setTool(tool) {
+        currentTool = tool
+        canvasInstance.setCurrentToolType(tool); // 设置当前操作类型
+        console.log('currentTool', tool);
+        arrowButton.classList.toggle('active', tool === 'arrow');
+        mosaicButton.classList.toggle('active', tool === 'mosaic');
+        scribbleButton.classList.toggle('active', tool === 'scribble');
+        eraserButton.classList.toggle('active', tool === 'eraser');
+        textInputButton.classList.toggle('active', tool === 'text');
+        rectButton.classList.toggle('active', tool === 'rect');
+        circleButton.classList.toggle('active', tool === 'circle');
       }
-     
-    }
-    function changeFontSize() {
-      const value = fontSizeNode.value
-      console.log(`FontSize变化为：${value}`)
-      canvasInstance.setTextFontSize(value)
-    }
-    function enlarge() {
-      setTool('scale')
-      canvasInstance.scale();
-    }
-    function reduce() {
-      setTool('scale')
-      canvasInstance.scale(false);
-    }
-    // 事件注册
-    canvasInstance.registerCallback({
-      checkUndo: (canUndo) => {
-        console.log('当前是否允许撤销', canUndo)
-      },
-      checkRedo: (canRedo) => {
-        console.log('当前是否允许取消撤销', canRedo)
-      },
+
+      function undo() {
+        canvasInstance.undo()
+      }
+      function redo() {
+        canvasInstance.redo()
+      }
+      function clear() {
+        canvasInstance.clear()
+      }
+
+      function blobToBase64(blob, callback) {
+        const reader = new FileReader();
+        reader.onloadend = function () {
+          callback(reader.result);
+        };
+        reader.readAsDataURL(blob);
+      }
+
+      function download() {
+        const fileName = '这是自定义的文件名'
+        const isBlob = true // 是否返回blob
+        canvasInstance.download(isBlob).then(res => {
+          console.log(`${isBlob ? '返回结果' : '已下载'}`, res)
+          if (isBlob && res) {
+            // 将 Blob 转换为 Base64 并存储到 localStorage
+            blobToBase64(res, (base64String) => {
+              localStorage.setItem('blobImg', base64String);
+            });
+
+          }
+        })
+      }
+      function changeColor() {
+        const colorValue = colorNode.value
+        console.log(`颜色值变化为：${colorValue}`)
+        canvasInstance.changeColor(colorValue)
+      }
+      function changeStrokeWidth() {
+        const value = strokeWidthNode.value
+        if (currentTool === 'text') {
+          console.log(`字体宽度变化为：${value}`)
+          canvasInstance.setTextFontWight(value)
+        } else {
+          console.log(`strokeWidth变化为：${value}`)
+          canvasInstance.changeStrokeWidth(value)
+        }
+
+      }
+      function changeFontSize() {
+        const value = fontSizeNode.value
+        console.log(`FontSize变化为：${value}`)
+        canvasInstance.setTextFontSize(value)
+      }
+      function enlarge() {
+        setTool('scale')
+        canvasInstance.scale();
+      }
+      function reduce() {
+        setTool('scale')
+        canvasInstance.scale(false);
+      }
+      // 事件注册
+      canvasInstance.registerCallback({
+        checkUndo: (canUndo) => {
+          console.log('当前是否允许撤销', canUndo)
+        },
+        checkRedo: (canRedo) => {
+          console.log('当前是否允许取消撤销', canRedo)
+        },
+      })
     })
-  })
   </script>
 </body>
 
