@@ -64,7 +64,6 @@ class CanvasImgEditor {
     this.ellipses = []; // 存储所有圆/椭圆信息
     this.currentWidth = 2
     this.currentColor = 'red'
-    this.canvasRectInfo = null
     this.canvasCursor = 'default' // 鼠标样式
     this.endPointRadius = 6 // 默认端点半径
     this.endPointFillColor = "#FFFFFF";        //端点内部填充颜色
@@ -90,6 +89,7 @@ class CanvasImgEditor {
     // 箭头信息
     this.currentOperationState = 'add' // 当前操作状态，默认是新增
     this.currentOperationInfo = null // 当前操作的信息
+    this.currentShapeId = -1 // 当前激活的图像ID，设置
     this.arrowList = [] // 已绘制的箭头列表
 
     // 涂鸦信息
@@ -176,6 +176,9 @@ class CanvasImgEditor {
       this.canvas.style.zIndex = 1;
       const img = new Image();
       img.crossOrigin = 'Anonymous'; // 允许跨域访问
+      if (src instanceof Blob) {
+        src = URL.createObjectURL(blob);
+      }
       img.src = src;
       this.canvasImgSrc = src
       img.onload = () => {
@@ -193,6 +196,7 @@ class CanvasImgEditor {
     }
   }
 
+
   handleMouseDown(e) {
     const { ctx } = this
     this._lastClickTime = new Date().getTime();
@@ -201,6 +205,7 @@ class CanvasImgEditor {
     this.startX = e.offsetX;
     this.startY = e.offsetY;
     console.log('mousedown', this.currentTool, e.offsetX, e.offsetY);
+    this.setCurrentShapeId()
     const { currentTool } = this
     if (currentTool !== 'text') {
       this.currentOperationInfo = {}
@@ -293,7 +298,7 @@ class CanvasImgEditor {
       this.handleRectMouseDown()
 
     } else if (currentTool === 'circle') {
-      this.haddleCircleMouseDown(this.startX, this.startY)
+      this.handleCircleMouseDown(this.startX, this.startY)
     } else if (currentTool === 'mosaic') {
       this.currentOperationInfo = this.createMosaicInfo(this.startX, this.startY)
       console.log('mosaic-add', this.currentOperationInfo);
@@ -401,11 +406,8 @@ class CanvasImgEditor {
       const { currentTool } = this
       if (currentTool === 'text') {
         this.handleTextMouseUp()
-        return
-      }
-      console.log('非文本编辑');
-
-      if (this.isDrawing) {
+      } else if (this.isDrawing) {
+        console.log('非文本编辑');
         this.isDrawing = false;
         this.handleArrowSaveAction()
         this.handleScribbleSaveAction()
@@ -420,6 +422,8 @@ class CanvasImgEditor {
           console.log(`箭头的两端点：(${this.currentOperationInfo.startX},${this.currentOperationInfo.startY})-(${this.currentOperationInfo.endX},${this.currentOperationInfo.endY})`);
         }
       }
+      this.checkActiveShape()
+
     });
 
     canvas.addEventListener('mouseleave', () => {
@@ -1388,7 +1392,7 @@ class CanvasImgEditor {
   }
 
   // 圆按下鼠标时的处理
-  haddleCircleMouseDown(startX, startY) {
+  handleCircleMouseDown(startX, startY) {
     const list = this.circleList
     let selected = false
     let circle = null
@@ -1399,12 +1403,6 @@ class CanvasImgEditor {
         this.indexChoosePoint = -1
         // eslint-disable-next-line no-loop-func
         const isNearKeyPoint = circle.endPointList.some((point, index) => {
-          // const distance = Math.sqrt((startX - point.x) ** 2 + (startY - point.y) ** 2);
-          // if (distance < 2 * circle.endPointRadius) {
-          //   this.indexChoosePoint = index
-          //   return true
-          // }
-
           if (this.insideRect(point.x, point.y, circle.endPointWidth, circle.endPointWidth, startX, startY)) {
             this.indexChoosePoint = index
             return true
@@ -1416,29 +1414,23 @@ class CanvasImgEditor {
           this.currentOperationState = 'resize'
           this.currentOperationInfo = circle
           selected = true
+          this.changeCurrentShapeOnMouseDown(circle)
+          this.drawCirclePoint(circle)
           this.setCircleEndPointCursor() // 设置鼠标样式
           break
 
         }
-        // const distance = ((startX - circle.startX) ** 2) / (circle.radiusX ** 2) +
-        //   ((startY - circle.startY) ** 2) / (circle.radiusY ** 2);
-        // if (distance <= 1) {
-
         const inCircleRing = this.isPointInEllipseRing(circle, startX, startY)
-        console.log('是否在圆环上', inCircleRing);
         if (inCircleRing) {
-          // alert('Mouse is inside the circle/ellipse!');
-          console.log('在圆内')
           selected = true
           this.currentOperationInfo = circle
           this.currentOperationState = 'move'
           this.modifyCursor('move')
+          this.changeCurrentShapeOnMouseDown(circle)
+          this.drawCirclePoint(circle)
           break;
         }
       }
-      console.log('selected', selected);
-      console.log('this.currentOperationState', this.currentOperationState);
-      console.log('this.indexChoosePoint', this.indexChoosePoint);
     }
     if (!selected) {
       const newCircle = {
@@ -1450,18 +1442,18 @@ class CanvasImgEditor {
         radiusY: 0,
         color: this.currentColor,
         lineWidth: this.currentWidth,
-        // endPointFillColor: this.endPointFillColor, // 端点内填充颜色
         endPointFillColor: '#fff', // 端点内填充颜色
-        // endPointRadius: this.endPointRadius, // 端点半径
         endPointWidth: this.endPointWidth, // 端点宽度
         endPointList: [], // 端点位置
       }
       this.circleList.push(newCircle)
       this.currentOperationInfo = newCircle
       this.currentOperationState = 'add'
+      this.setCurrentShapeId(this.currentOperationInfo.id)
     }
 
   }
+
 
   // 圆-拖动鼠标处理
   handleCircleMouseMove(currentX, currentY) {
@@ -1509,10 +1501,17 @@ class CanvasImgEditor {
     const currentX = e.offsetX
     const currentY = e.offsetY
     if (this.currentTool === 'circle') {
-      this.setCircleEndPointCursor('auto') // 将鼠标样式auto
-      this.drawCirclePoint(this.currentOperationInfo)
-      this.checkCirclePoint([this.currentOperationInfo], currentX, currentY)
-      // this.setCircleEndPointCursor()
+      // 先判断当前图像是否符合
+      if (this.currentOperationState === 'add' &&
+        (this.currentOperationInfo.radiusX == 0
+          || this.currentOperationInfo.radiusY === 0)) {
+        // 是新增状态且半径为空的圆，需要剔除
+        this.circleList.pop()
+        this.setCurrentShapeId()
+        this.currentOperationInfo = null
+      } else {
+        this.setCircleEndPointCursor() // 设置鼠标样式
+      }
     }
   }
 
@@ -1525,24 +1524,26 @@ class CanvasImgEditor {
     ctx.stroke();
 
     // 计算边上8个点
-    // const keyPoints = this.getCircleEndPoints(circle.startX, circle.startY, circle.radiusX, circle.radiusY);
     const keyPoints = this.getCircleEndPoints(circle);
     circle.endPointList = keyPoints
+    if (this.checkCurrentShapeId(circle.id)) {
+      this.drawCirclePoint(circle)
+    }
 
   }
 
   // 绘制圆的端点
   drawCirclePoint(circle) {
     const { ctx } = this
-    if (circle.radiusX > 3 * circle.endPointWidth && circle.radiusY > 3 * circle.endPointWidth) {
-      circle.endPointList.forEach(point => {
-        ctx.beginPath();
-        ctx.fillRect(point.x, point.y, circle.endPointWidth, circle.endPointWidth)
-        ctx.fillStyle = circle.endPointFillColor;
-        ctx.fill();
-        ctx.closePath();
-      });
-    }
+    // if (circle.radiusX > 3 * circle.endPointWidth && circle.radiusY > 3 * circle.endPointWidth) {
+    circle.endPointList.forEach(point => {
+      ctx.beginPath();
+      ctx.fillRect(point.x, point.y, circle.endPointWidth, circle.endPointWidth)
+      ctx.fillStyle = circle.endPointFillColor;
+      ctx.fill();
+      ctx.closePath();
+    });
+    // }
   }
 
 
@@ -1566,14 +1567,6 @@ class CanvasImgEditor {
       { x: startX + radiusX - distance, y: startY - radiusY - distance }, // 右上
       { x: startX + radiusX - distance, y: startY + radiusY - distance }, // 右下
       { x: startX - radiusX - distance, y: startY + radiusY - distance } // 左下
-      // { x: cx, y: cy - radiusY }, // 上
-      // { x: cx + majorR, y: cy }, // 右
-      // { x: cx, y: cy + minorR }, // 下
-      // { x: cx - majorR, y: cy }, // 左
-      // { x: cx - majorR, y: cy - minorR }, // 左上
-      // { x: cx + majorR, y: cy - minorR }, // 右上
-      // { x: cx + majorR, y: cy + minorR }, // 右下
-      // { x: cx - majorR, y: cy + minorR } // 左下
     ];
     return points;
   }
@@ -1649,17 +1642,19 @@ class CanvasImgEditor {
 
   saveAction() {
     if (this.currentOperationInfo) {
+      // 过滤无效保存
       this.actions.push(JSON.parse(JSON.stringify(this.currentOperationInfo)));
+      this.undoStack = []; // 每次新的操作会清空撤销栈
+      // 将鼠标样式切换回默认
+      this.modifyCursor('auto')
+      this.onListenUndoState()
     }
 
     console.log('saveaction-this.actions', this.actions);
     // 打印当前操作类型的list
     console.log(`saveAction-this.${this.typeAndShapeMap[this.currentTool]}`, this[this.typeAndShapeMap[this.currentTool]]);
 
-    this.undoStack = []; // 每次新的操作会清空撤销栈
-    // 将鼠标样式切换回默认
-    this.modifyCursor('auto')
-    this.onListenUndoState()
+
   }
 
   undo() {
@@ -1807,7 +1802,7 @@ class CanvasImgEditor {
     this.ctx.clearRect(0, 0, this.canvasWidth, this.canvasHeight); // 清除画布
   }
 
-  download(name, isBlob = false) {
+  download(isBlob = false, name = 'merged_image') {
     return new Promise((resove) => {
       const mergedCanvas = document.createElement('canvas');
       mergedCanvas.width = this.canvasWidth;
@@ -1824,7 +1819,7 @@ class CanvasImgEditor {
           console.log('下载的图片链接', url);
           const a = document.createElement('a');
           a.href = url;
-          const fileName = name || 'merged_image.png'
+          const fileName = name
           a.download = fileName; // 可以指定文件名
           document.body.appendChild(a);
           a.click();
@@ -1951,7 +1946,8 @@ class CanvasImgEditor {
     this.scaleOffsetY = this.scaleOffsetYCopy + e.y - this.scaleMouseDownY;
     this.setCanvasScaleStyle(this.scaleOffsetX, this.scaleOffsetY, this.scaleRadio)
   }
-
+  // 另一种缩放方案，缩放canvas画布
+  // 和通过样式调整canvas实现缩放的区别：需要重新计算其余图形位置，而样式缩放无需重新重新计算位置
   // drawScale() {
   //   const { ctx, ctxImg, scaleRadio, scaleOriginX, scaleOriginY, canvasWidth, canvasHeight, imgNode } = this
   //   console.log(' scaleRadio-----', scaleRadio);
@@ -2018,10 +2014,11 @@ class CanvasImgEditor {
     let cursorType = 'auto'
     let selected = false
     let circle = null
-    for(let i = 0, len = list.length; i<len; i++) {
+    let isNearKeyPoint = false
+    for (let i = 0, len = list.length; i < len; i++) {
       circle = list[i]
       // eslint-disable-next-line no-loop-func
-      const isNearKeyPoint = circle.endPointList.some((point, index) => {
+      isNearKeyPoint = circle.endPointList.some((point, index) => {
         if (this.insideRect(point.x, point.y, circle.endPointWidth, circle.endPointWidth, currentX, currentY)) {
           this.indexChoosePoint = index
           return true
@@ -2029,26 +2026,53 @@ class CanvasImgEditor {
         return false
       });
       console.log('isNearKeyPoint', isNearKeyPoint);
-      cursorType = isNearKeyPoint ? 'move' : 'auto'
-      this.modifyCursor(cursorType)
-      if(isNearKeyPoint) {
+      if (isNearKeyPoint) {
+        this.setCircleEndPointCursor()
         break;
+
       }
       if (!isNearKeyPoint) {
         selected = this.isPointInEllipseRing(circle, currentX, currentY)
-        console.log('up-是否在圆端点', selected);
-        if(selected) {
-          this.setCircleEndPointCursor()
+        console.log('up-是否在圆边', selected);
+        if (selected) {
+          cursorType = 'move'
+          break
         }
       }
+    }
+    if (!isNearKeyPoint) {
+      this.modifyCursor(cursorType)
     }
   }
 
   handleElseMouseMove(currentX, currentY) {
     console.log('handleElseMouseMove', currentX, currentY);
-    console.log('this.circleList',this.circleList);
+    console.log('this.circleList', this.circleList);
     this.checkCirclePoint(this.circleList, currentX, currentY)
-    
+
+  }
+  // 设置当前激活的图形ID, 若不传，则表示无图形被激活
+  setCurrentShapeId(id = -1) {
+    this.currentShapeId = id
+  }
+  // 判断当前激活图像是否和自身相同
+  checkCurrentShapeId(id) {
+    return this.currentShapeId === id
+  }
+  // 判断当前是否存在激活的图像ID
+  hasCurrentShapeID() {
+    return this.currentShapeId > -1
+  }
+  // 激活图像检测，若无激活ID，则重绘，取消激活状态
+  checkActiveShape() {
+    if (!this.hasCurrentShapeID()) {
+      this.reDrawCanvas()
+    }
+  }
+  // 当鼠标按下时，切换当前激活图像
+  changeCurrentShapeOnMouseDown(shape) {
+    this.reDrawCanvas()
+    this.setCurrentShapeId(shape.id)
   }
 }
 
