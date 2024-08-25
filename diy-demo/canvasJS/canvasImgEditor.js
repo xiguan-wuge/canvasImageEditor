@@ -38,6 +38,14 @@ const defaultConfig = {
   scaleRadioMin: 0.2,// 最小缩放比例
   scaleOffsetX: 0,
   scaleOffsetY: 0,
+  currentShapeId: -1, // 当前激活的图形
+  changeToolTypeAuto: true, // 是否允许在编辑过程中自动切换操作类型（通过鼠标点击圆、矩形、箭头、之间切换类型）
+  hoverActiveShapeId: -1, // 非绘图状态下，鼠标移动时hover的图形ID
+  hoverActiveShapeType: '', // 非绘图状态下，鼠标移动时hover的图形类型
+}
+// 函数判断
+const isFunction = (val) => {
+  return typeof val === 'function'
 }
 const DBCLICK_TIME = 300; // 双击时间间隔
 class CanvasImgEditor {
@@ -56,6 +64,9 @@ class CanvasImgEditor {
     this.startX = 0
     this.startY = 0;
     this.currentTool = 'text'; // 默认工具为画箭头
+    this.changeToolTypeAuto = defaultConfig.changeToolTypeAuto // 是否允许在编辑过程中自动切换操作类型（通过鼠标点击圆、矩形、箭头、之间切换类型）
+    this.hoverActiveShapeId = defaultConfig.hoverActiveShapeId // 非绘图状态下，鼠标移动时hover的图形ID
+    this.hoverActiveShapeType = defaultConfig.hoverActiveShapeType // 非绘图状态下，鼠标移动时hover的图形类型
     this.actions = []; // 用于存储操作的历史记录
     this.undoStack = []; // 用于存储撤销的操作
     this.undoState = false // 当前撤销状态，是否允许撤销，默认false
@@ -89,7 +100,7 @@ class CanvasImgEditor {
     // 箭头信息
     this.currentOperationState = 'add' // 当前操作状态，默认是新增
     this.currentOperationInfo = null // 当前操作的信息
-    this.currentShapeId = -1 // 当前激活的图像ID，设置
+    this.currentShapeId = defaultConfig.currentShapeId // 当前激活的图像ID，设置
     this.arrowList = [] // 已绘制的箭头列表
 
     // 涂鸦信息
@@ -195,18 +206,34 @@ class CanvasImgEditor {
       this.hideTextareaNode()
     }
   }
+  // 鼠标点击修改当前操作类型
+  setCurrentToolTypeByAyto() {
+    const { hoverActiveShapeId, hoverActiveShapeType, currentTool } = this
+    if (hoverActiveShapeId > -1 && hoverActiveShapeType && hoverActiveShapeType !== currentTool) {
+      this.setCurrentToolType(hoverActiveShapeType)
+      this.setCurrentShapeId()
+      this.reDrawCanvas()
+      isFunction(this.callbackObj.toolTypeChange) && this.callbackObj.toolTypeChange(hoverActiveShapeType)
+    }
+  }
+
 
 
   handleMouseDown(e) {
-    const { ctx } = this
+    if (this.changeToolTypeAuto) {
+      // 若运行自动切换可编辑图形类型，则鼠标按下后切换类型
+      this.setCurrentToolTypeByAyto()
+    }
+
+    const { ctx, currentTool } = this
     this._lastClickTime = new Date().getTime();
     ctx.globalCompositeOperation = 'source-over'
     this.isDrawing = true;
     this.startX = e.offsetX;
     this.startY = e.offsetY;
     console.log('mousedown', this.currentTool, e.offsetX, e.offsetY);
-    this.setCurrentShapeId()
-    const { currentTool } = this
+    this.setCurrentToolTypeByAyto()
+
     if (currentTool !== 'text') {
       this.currentOperationInfo = {}
     }
@@ -316,14 +343,14 @@ class CanvasImgEditor {
     canvas.addEventListener('mousemove', (e) => {
       const currentX = e.offsetX;
       const currentY = e.offsetY;
+      const { currentTool } = this
+
+      // 鼠标houver处理
       if (!this.isDrawing) {
         this.handleElseMouseMove(currentX, currentY, e)
         return
-      };
-
-
-      const { currentTool } = this
-
+      }
+      // 绘图move
       if (currentTool === 'arrow') {
         const { currentOperationInfo, currentOperationState } = this
         this.reDrawCanvas()
@@ -412,7 +439,7 @@ class CanvasImgEditor {
         this.handleArrowSaveAction()
         this.handleScribbleSaveAction()
         this.handleEraserSaveAction()
-        this.handleRectSaveAction()
+        this.handleRectMouseUp()
         this.handleCircleMouseUp(e)
         console.log('11111111111');
         this.saveAction(); // 保存当前操作
@@ -1044,16 +1071,20 @@ class CanvasImgEditor {
           this.rectOperationState = 'resize'
           this.currentOperationInfo = rect
           this.setRectEndPointCursor(this.indexChoosePoint)
+          this.changeCurrentShapeOnMouseDown(rect)
+          this.drawRectEndPoint(rect)
           // this.modifyCursor('e-resize')
           selected = true
           break;
           // } else if (this.inShape(this.startX, this.startY, rect.allPointList)) {
         } else if (this.inLine(this.startX, this.startY, rect.pointList, rect)) {
-          // 在圆边上
+          // 在矩形边上
           selected = true
           this.rectOperationState = 'move'
           this.currentOperationInfo = rect
           this.modifyCursor('move')
+          this.changeCurrentShapeOnMouseDown(rect)
+          this.drawRectEndPoint(rect)
           break
         }
       }
@@ -1081,6 +1112,7 @@ class CanvasImgEditor {
       }
       this.rectList.push(newRect)
       this.currentOperationInfo = newRect
+      this.setCurrentShapeId(newRect.id)
     }
     console.log('矩形操作按下时的数据', JSON.parse(JSON.stringify(this.currentOperationInfo)))
   }
@@ -1106,6 +1138,24 @@ class CanvasImgEditor {
     }
 
   }
+  handleRectMouseUp() {
+    if (this.currentTool === "rect" && this.rectOperationState === 'add') {
+      // if (this.currentOperationInfo) {
+      //   const sameItem = this.rectList.find(item => item.id === this.currentOperationInfo.id)
+      //   if (!sameItem) {
+      //     this.rectList.push(JSON.parse(JSON.stringify(this.currentOperationInfo)))
+      //   }
+      // }
+      // 判断矩形是否符合
+      if (this.currentOperationInfo.width === 0 || this.currentOperationInfo.height === 0) {
+        this.rectList.pop()
+        this.setCurrentShapeId()
+        this.currentOperationInfo = null
+      } else {
+        this.setRectEndPointCursor()
+      }
+    }
+  }
 
   // 矩形
   drawRect(item) {
@@ -1120,9 +1170,14 @@ class CanvasImgEditor {
     item.startY = startY
 
     ctx.strokeRect(item.startX, item.startY, item.width, item.height);
+
+    // 获取端点信息
+    this.getRectEndPointList(item)
     // 绘制矩形中4个边角点和4边的中间点
-    const isDrawEndPoint = (width > item.endPointWidth * 3) && (height > item.endPointWidth * 3)
-    this.getRectEndPointList(item, isDrawEndPoint)
+    // const isDrawEndPoint = (width > item.endPointWidth * 3) && (height > item.endPointWidth * 3)
+    if (this.checkCurrentShapeId(item.id)) {
+      this.drawRectEndPoint(item)
+    }
     // if (width > 30 && height > 30) {
 
     // const iHalfWidth = Math.round(width / 2);
@@ -1168,9 +1223,8 @@ class CanvasImgEditor {
 
   // 生成并绘制矩形的端点
   getRectEndPointList(rect, isDrawEndPoint) {
-    const { width, height, endPointColor, endPointWidth, pointList } = rect
+    const { width, height, endPointWidth, pointList } = rect
     const [startX, startY] = pointList[0]
-    const { ctx } = this
     const endPointHalfWidth = endPointWidth / 2
     const iHalfWidth = Math.round(width / 2);
     const iHalfHeight = Math.round(height / 2);
@@ -1187,15 +1241,22 @@ class CanvasImgEditor {
     const endPointList = []
     for (let i = 0; i < 8; i++) {
       endPointList.push([aPointX[i], aPointY[i]])
-      if (isDrawEndPoint) {
-        ctx.beginPath();
-        ctx.fillRect(aPointX[i], aPointY[i], endPointWidth, endPointWidth)
-        ctx.fillStyle = endPointColor;
-        ctx.fill();
-        ctx.closePath();
-      }
     }
     rect.endPointList = endPointList
+    if (isDrawEndPoint) {
+      this.drawRectEndPoint(rect)
+    }
+  }
+  drawRectEndPoint(rect) {
+    const { ctx } = this
+    const { endPointWidth, endPointColor } = rect
+    rect?.endPointList.forEach(point => {
+      ctx.beginPath();
+      ctx.fillRect(point[0], point[1], endPointWidth, endPointWidth)
+      ctx.fillStyle = endPointColor;
+      ctx.fill();
+      ctx.closePath();
+    })
   }
 
   setRectEndPointCursor() {
@@ -1214,6 +1275,39 @@ class CanvasImgEditor {
       this.modifyCursor('nesw-resize')
     } else {
       this.modifyCursor('auto')
+    }
+  }
+
+  checkRectPoint(list, currentX, currentY) {
+    let selectedId = -1
+    if (list && list.length > 0) {
+      let rect = null
+      for (let len = list.length, i = len - 1; i >= 0; i--) {
+        rect = list[i]
+        // eslint-disable-next-line no-loop-func
+        const isNearKeyPoint = rect.endPointList.some((point, index) => {
+          if (this.insideRect(point[0], point[1], rect.endPointWidth, rect.endPointWidth, currentX, currentY)) {
+            this.indexChoosePoint = index
+            return true
+          }
+          return false
+        });
+        if (isNearKeyPoint) {
+          this.setRectEndPointCursor(this.indexChoosePoint)
+          selectedId = rect.id
+          break;
+          // } else if (this.inShape(this.startX, this.startY, rect.allPointList)) {
+        } else if (this.inLine(currentX, currentY, rect.pointList, rect)) {
+          // 在矩形边上
+          selectedId = rect.id
+          this.modifyCursor('move')
+          break
+        }
+      }
+    }
+    return {
+      id: selectedId,
+      type: 'rect'
     }
   }
 
@@ -1454,7 +1548,6 @@ class CanvasImgEditor {
 
   }
 
-
   // 圆-拖动鼠标处理
   handleCircleMouseMove(currentX, currentY) {
     if (this.currentOperationInfo) {
@@ -1497,9 +1590,7 @@ class CanvasImgEditor {
 
   }
 
-  handleCircleMouseUp(e) {
-    const currentX = e.offsetX
-    const currentY = e.offsetY
+  handleCircleMouseUp() {
     if (this.currentTool === 'circle') {
       // 先判断当前图像是否符合
       if (this.currentOperationState === 'add' &&
@@ -1629,16 +1720,7 @@ class CanvasImgEditor {
     this.reDrawCanvas()
   }
 
-  handleRectSaveAction() {
-    if (this.currentTool === "rect" && this.rectOperationState === 'add') {
-      if (this.currentOperationInfo) {
-        const sameItem = this.rectList.find(item => item.id === this.currentOperationInfo.id)
-        if (!sameItem) {
-          this.rectList.push(JSON.parse(JSON.stringify(this.currentOperationInfo)))
-        }
-      }
-    }
-  }
+
 
   saveAction() {
     if (this.currentOperationInfo) {
@@ -2007,12 +2089,13 @@ class CanvasImgEditor {
       this.callbackObj.checkRedo(this.undoStack.length > 0)
     }
     this.callbackObj.onClear = callbackObj.onClear || null
+    this.callbackObj.toolTypeChange = callbackObj.toolTypeChange || null
   }
 
   // 检查当前点是否在圆边上或者圆的端点，若是则修改鼠标样式
   checkCirclePoint(list, currentX, currentY) {
     let cursorType = 'auto'
-    let selected = false
+    let selectedId = -1
     let circle = null
     let isNearKeyPoint = false
     for (let i = 0, len = list.length; i < len; i++) {
@@ -2025,17 +2108,16 @@ class CanvasImgEditor {
         }
         return false
       });
-      console.log('isNearKeyPoint', isNearKeyPoint);
       if (isNearKeyPoint) {
         this.setCircleEndPointCursor()
+        selectedId = circle.id
         break;
 
       }
       if (!isNearKeyPoint) {
-        selected = this.isPointInEllipseRing(circle, currentX, currentY)
-        console.log('up-是否在圆边', selected);
-        if (selected) {
+        if (this.isPointInEllipseRing(circle, currentX, currentY)) {
           cursorType = 'move'
+          selectedId = circle.id
           break
         }
       }
@@ -2043,14 +2125,30 @@ class CanvasImgEditor {
     if (!isNearKeyPoint) {
       this.modifyCursor(cursorType)
     }
+    return {
+      id: selectedId,
+      type: 'circle'
+    }
   }
-
+  // 处理鼠标hover
   handleElseMouseMove(currentX, currentY) {
     console.log('handleElseMouseMove', currentX, currentY);
     console.log('this.circleList', this.circleList);
-    this.checkCirclePoint(this.circleList, currentX, currentY)
+    let selected = {}
+
+    selected = this.checkCirclePoint(this.circleList, currentX, currentY)
+    if (selected.id === -1) {
+      selected = this.checkRectPoint(this.rectList, currentX, currentY)
+    }
+
+    const { id, type } = selected
+    this.hoverActiveShapeId = id
+    this.hoverActiveShapeType = type
+
 
   }
+
+
   // 设置当前激活的图形ID, 若不传，则表示无图形被激活
   setCurrentShapeId(id = -1) {
     this.currentShapeId = id
