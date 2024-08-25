@@ -207,7 +207,7 @@ class CanvasImgEditor {
     }
   }
   // 鼠标点击修改当前操作类型
-  setCurrentToolTypeByAyto() {
+  setCurrentToolTypeByAuto() {
     const { hoverActiveShapeId, hoverActiveShapeType, currentTool } = this
     if (hoverActiveShapeId > -1 && hoverActiveShapeType && hoverActiveShapeType !== currentTool) {
       this.setCurrentToolType(hoverActiveShapeType)
@@ -222,7 +222,7 @@ class CanvasImgEditor {
   handleMouseDown(e) {
     if (this.changeToolTypeAuto) {
       // 若运行自动切换可编辑图形类型，则鼠标按下后切换类型
-      this.setCurrentToolTypeByAyto()
+      this.setCurrentToolTypeByAuto()
     }
 
     const { ctx, currentTool } = this
@@ -232,79 +232,14 @@ class CanvasImgEditor {
     this.startX = e.offsetX;
     this.startY = e.offsetY;
     console.log('mousedown', this.currentTool, e.offsetX, e.offsetY);
-    this.setCurrentToolTypeByAyto()
 
     if (currentTool !== 'text') {
-      this.currentOperationInfo = {}
+      this.currentOperationInfo = null
     }
     this.currentOperationState = ''
 
     if (currentTool === 'arrow') {
-      const list = this.arrowList
-      let selected = false
-      if (list && list.length > 0) {
-        let arrow = {}
-        // 从后往前遍历，后面绘制的优先级高于前面被绘制的
-        for (let len = list.length, i = len - 1; i >= 0; i--) {
-          arrow = list[i]
-          if (this.insideRect(arrow.startX - 2, arrow.startY - 2, 4, 4, this.startX, this.startY)) {
-            // } else if (this.isMouseNearArrowPoint(this.startX, this.startY, arrow.startX, arrow.startY, 6)) {
-            this.currentOperationState = 'start'
-            this.canvas.style.cursor = 'move'
-            this.currentOperationInfo = arrow
-            selected = true
-            console.log('箭头起点');
-          } else if (this.insideRect(arrow.endX - 2, arrow.endY - 2, 4, 4, this.startX, this.startY)) {
-            // } else if (this.isMouseNearArrowPoint(this.startX, this.startY, arrow.endX, arrow.endY, 6)) {
-            this.currentOperationState = 'end'
-            this.canvas.style.cursor = 'move'
-
-            this.currentOperationInfo = arrow
-            console.log('箭头尾部');
-            selected = true
-          } else if (this.isPointOnThickLine(this.startX, this.startY, arrow.startX, arrow.startY, arrow.endX, arrow.endY, arrow.endWidth)) {
-            console.log('在箭头线段上')
-            this.currentOperationState = 'move'
-            this.currentOperationInfo = arrow
-            selected = true
-            this.modifyCursor('move')
-
-          }
-        }
-        console.log('选中状态', selected);
-      }
-      if (!selected) {
-        // 正常绘制？ 绘制第二条线段时，不执行这块？？？
-        console.log('这是新增箭头');
-        this.currentOperationState = 'add'
-        this.currentOperationInfo = {
-          id: canvasGlobalId++,
-          type: 'arrow',
-          startX: this.startX,
-          startY: this.startY,
-          endX: this.startX,
-          endY: this.startY,
-          color: this.currentColor,
-          startWidth: 1,
-          endWidth: (this.currentWidth - 0) + 7,
-          startPoint: { // 起点端点
-            x: this.startX - (this.endPointWidth / 2),
-            y: this.startY - (this.endPointWidth / 2),
-            endPointWidth: this.endPointWidth,
-            color: this.endPointColor
-          },
-          endPoint: { // 结束端点
-            x: this.startX - (this.endPointWidth / 2),
-            y: this.startY - (this.endPointWidth / 2),
-            endPointWidth: this.endPointWidth,
-            color: this.endPointColor
-          },
-        }
-      }
-      console.log('selected', selected);
-      console.log('mouseDown', this.currentOperationState);
-      console.log('his.currentOperationInfo', this.currentOperationInfo);
-
+      this.handleArrowMouseDown()
     } else if (currentTool === 'scribble') {
       // 涂鸦
       this.currentOperationInfo = {
@@ -323,7 +258,6 @@ class CanvasImgEditor {
       this.handleTextMouseDown(this.startX, this.startY)
     } else if (currentTool === 'rect') {
       this.handleRectMouseDown()
-
     } else if (currentTool === 'circle') {
       this.handleCircleMouseDown(this.startX, this.startY)
     } else if (currentTool === 'mosaic') {
@@ -352,48 +286,7 @@ class CanvasImgEditor {
       }
       // 绘图move
       if (currentTool === 'arrow') {
-        const { currentOperationInfo, currentOperationState } = this
-        this.reDrawCanvas()
-        if (currentOperationState === 'move') {
-          console.log('move');
-          // 移动箭头
-          const dx = currentX - this.startX
-          const dy = currentY - this.startY
-
-          // 更新线段的起点位置，将其向 dx 和 dy 的方向移动
-          currentOperationInfo.startX += dx;
-          currentOperationInfo.startY += dy;
-
-          // 更新线段的终点位置，使其与起点保持相同的位移量
-          currentOperationInfo.endX += dx;
-          currentOperationInfo.endY += dy;
-          this.getArrowEndPoint(this.currentOperationInfo, 'both')
-          this.drawGradientArrow(
-            currentOperationInfo
-          );
-          // 更新完成后，重新设置起始位置
-          this.startX = currentX
-          this.startY = currentY
-        } else if (currentOperationState === 'end') {
-          // 调整箭头尾部位置
-          this.currentOperationInfo.endX = currentX
-          this.currentOperationInfo.endY = currentY
-          this.getArrowEndPoint(this.currentOperationInfo, 'end')
-          this.drawGradientArrow(this.currentOperationInfo)
-        } else if (currentOperationState === 'start') {
-          // 调整箭头开头位置
-          this.currentOperationInfo.startX = currentX
-          this.currentOperationInfo.startY = currentY
-          this.getArrowEndPoint(this.currentOperationInfo, 'start')
-          this.drawGradientArrow(this.currentOperationInfo)
-        } else {
-          // 正常绘制箭头
-          this.currentOperationInfo.endX = currentX
-          this.currentOperationInfo.endY = currentY
-          this.getArrowEndPoint(this.currentOperationInfo, 'both')
-          this.drawGradientArrow(this.currentOperationInfo)
-        }
-
+        this.handleArrowMouseMove(currentX, currentY)
       } else if (currentTool === 'scribble') {
         const newScribble = {
           startX: this.startX,
@@ -436,18 +329,13 @@ class CanvasImgEditor {
       } else if (this.isDrawing) {
         console.log('非文本编辑');
         this.isDrawing = false;
-        this.handleArrowSaveAction()
+        this.handleArrowMouseUp()
         this.handleScribbleSaveAction()
         this.handleEraserSaveAction()
         this.handleRectMouseUp()
         this.handleCircleMouseUp(e)
         console.log('11111111111');
-        this.saveAction(); // 保存当前操作
-
-        const { currentTool } = this
-        if (currentTool === 'arrow') {
-          console.log(`箭头的两端点：(${this.currentOperationInfo.startX},${this.currentOperationInfo.startY})-(${this.currentOperationInfo.endX},${this.currentOperationInfo.endY})`);
-        }
+        this.saveAction(); // 保存当前操作xx
       }
       this.checkActiveShape()
 
@@ -466,6 +354,7 @@ class CanvasImgEditor {
       }
     });
     canvas.addEventListener('wheel', (e) => {
+      isFunction(e.preventDefault) && e.preventDefault()
       this.handleMouseWheel(e)
     })
     canvas.addEventListener('drag', (e) => {
@@ -488,10 +377,125 @@ class CanvasImgEditor {
     return newClickTime - this._lastClickTime < DBCLICK_TIME;
   }
 
+  handleArrowMouseDown() {
+    const list = this.arrowList
+    let selected = false
+    if (list && list.length > 0) {
+      let arrow = {}
+      // 从后往前遍历，后面绘制的优先级高于前面被绘制的
+      for (let len = list.length, i = len - 1; i >= 0; i--) {
+        arrow = list[i]
+        const {startX, startY, endX, endY, startPoint, endWidth} = arrow
+        const {endPointWidth} = startPoint
+        const halfEndPointWidth = endPointWidth/2
+        if (this.insideRect(startX - (endPointWidth), startY - 2, 4, 4, this.startX, this.startY)) {
+          this.changeCurrentShapeOnMouseDown(arrow)
+          this.resizeGradientArrow()
+          this.drawArrowEndPoint(arrow)
+
+          this.currentOperationState = 'start'
+          this.modifyCursor('move')
+          this.currentOperationInfo = arrow
+          selected = true
+          break;
+        } else if (this.insideRect(endX - halfEndPointWidth, endY - halfEndPointWidth, endPointWidth, endPointWidth, this.startX, this.startY)) {
+          this.changeCurrentShapeOnMouseDown(arrow)
+          this.resizeGradientArrow()
+          this.drawArrowEndPoint(arrow)
+
+          this.currentOperationState = 'end'
+          this.modifyCursor('move')
+          this.currentOperationInfo = arrow
+          selected = true
+          break;
+        } else if (this.isPointOnThickLine(this.startX, this.startY, startX, startY, endX, endY, endWidth)) {
+          this.changeCurrentShapeOnMouseDown(arrow)
+          this.resizeGradientArrow()
+          this.drawArrowEndPoint(arrow)
+          this.currentOperationState = 'move'
+          this.currentOperationInfo = arrow
+          this.modifyCursor('move')
+          selected = true
+          break;
+        }
+      }
+    }
+    if (!selected) {
+      // 正常绘制？ 绘制第二条线段时，不执行这块？？？
+      const newArrow = {
+        id: canvasGlobalId++,
+        type: 'arrow',
+        startX: this.startX,
+        startY: this.startY,
+        endX: this.startX,
+        endY: this.startY,
+        color: this.currentColor,
+        startWidth: 1,
+        endWidth: (this.currentWidth - 0) + 7,
+        startPoint: { // 起点端点
+          x: this.startX - (this.endPointWidth / 2),
+          y: this.startY - (this.endPointWidth / 2),
+          endPointWidth: this.endPointWidth,
+          color: this.endPointColor
+        },
+        endPoint: { // 结束端点
+          x: this.startX - (this.endPointWidth / 2),
+          y: this.startY - (this.endPointWidth / 2),
+          endPointWidth: this.endPointWidth,
+          color: this.endPointColor
+        },
+      }
+      this.currentOperationState = 'add'
+      this.currentOperationInfo = newArrow
+      this.arrowList.push(newArrow)
+      this.setCurrentShapeId(this.currentOperationInfo.id)
+    }
+  }
+  handleArrowMouseMove(currentX, currentY) {
+    const { currentOperationState, currentOperationInfo } = this
+    if (currentOperationState === 'move') {
+      // 移动箭头
+      const dx = currentX - this.startX
+      const dy = currentY - this.startY
+
+      // 更新线段的起点位置，将其向 dx 和 dy 的方向移动
+      currentOperationInfo.startX += dx;
+      currentOperationInfo.startY += dy;
+
+      // 更新线段的终点位置，使其与起点保持相同的位移量
+      currentOperationInfo.endX += dx;
+      currentOperationInfo.endY += dy;
+      this.getArrowEndPoint(this.currentOperationInfo, 'both')
+      this.resizeGradientArrow(currentOperationInfo);
+      // 更新完成后，重新设置起始位置
+      this.startX = currentX
+      this.startY = currentY
+    } else if (currentOperationState === 'end') {
+      // 调整箭头尾部位置
+      this.currentOperationInfo.endX = currentX
+      this.currentOperationInfo.endY = currentY
+      this.getArrowEndPoint(this.currentOperationInfo, 'end')
+      this.resizeGradientArrow(this.currentOperationInfo)
+    } else if (currentOperationState === 'start') {
+      // 调整箭头开头位置
+      this.currentOperationInfo.startX = currentX
+      this.currentOperationInfo.startY = currentY
+      this.getArrowEndPoint(this.currentOperationInfo, 'start')
+      this.resizeGradientArrow(this.currentOperationInfo)
+    } else {
+      // 正常绘制箭头
+      this.currentOperationInfo.endX = currentX
+      this.currentOperationInfo.endY = currentY
+      this.getArrowEndPoint(this.currentOperationInfo, 'both')
+      this.resizeGradientArrow(this.currentOperationInfo)
+    }
+  }
+  resizeGradientArrow(item) {
+    this.reDrawCanvas()
+  }
+
   // 绘制渐变线条的箭头
-  // drawGradientArrow(startX, startY, endX, toY, startWidth = 1, endWidth = 8, color = 'red', isRedraw = false) {
-  drawGradientArrow(item, isRedraw = false) {
-    // startX, startY, endX, endY, startWidth = 1, endWidth = 8, color = 'red',
+  drawGradientArrow(item) {
     const { startX, startY, endX, endY, startWidth, endWidth, color, startPoint, endPoint } = item
     const { ctx } = this
     const steps = 300; // 分段数量
@@ -543,47 +547,25 @@ class CanvasImgEditor {
     ctx.stroke();
     ctx.fillStyle = color;
     ctx.fill();
-
-    // 绘制箭头首尾的端点
-    // 绘制开始圆圈
-    // startPoint.x = startX - (startPoint.endPointWidth/2)
-    // startPoint.y = startX - (startPoint.endPointWidth/2)
-
+    if (this.checkCurrentShapeId(item.id)) {
+      this.drawArrowEndPoint(item)
+    }
+  }
+  // 绘制箭头首尾的端点
+  drawArrowEndPoint(item) {
+    const { startPoint, endPoint } = item
+    const { ctx } = this
+    // 绘制开始端点
     ctx.beginPath();
-    // ctx.arc(startX, startY, 5, 0, Math.PI * 2, true);
     ctx.fillStyle = startPoint.color;
     ctx.fillRect(startPoint.x, startPoint.y, startPoint.endPointWidth, startPoint.endPointWidth)
-
     ctx.fill();
-    // 绘制结束圆圈
-    // endPoint.x = endX - (endPoint.endPointWidth/2)
-    // endPoint.y = endX - (endPoint.endPointWidth/2)
+
+    // 绘制结束端点
     ctx.beginPath();
-    // ctx.arc(
-    //   endX,
-    //   endY,
-    //   5,
-    //   0,
-    //   Math.PI * 2,
-    //   true
-    // );
-    // ctx.fillRect(endX - 2, endY -2, 4, 4)
-    // ctx.fillStyle = '#FFFFFF';
     ctx.fillStyle = endPoint.color;
     ctx.fillRect(endPoint.x, endPoint.y, endPoint.endPointWidth, endPoint.endPointWidth)
     ctx.fill();
-    if (!isRedraw) {
-      // 记录箭头的收尾位置
-      const { currentOperationInfo } = this
-      currentOperationInfo.startX = startX
-      currentOperationInfo.startY = startY
-      currentOperationInfo.endX = endX
-      currentOperationInfo.endY = endY
-      currentOperationInfo.startWidth = startWidth
-      currentOperationInfo.endWidth = endWidth
-      currentOperationInfo.color = color
-    }
-
   }
 
   // 修改箭头的起始、结束端点
@@ -630,12 +612,28 @@ class CanvasImgEditor {
     // 判断距离是否小于或等于线段的一半宽度
     return distance <= lineWidth / 2 && withinSegment;
   }
+  redrawArrowList() {
+    if (this.arrowList && this.arrowList.length) {
+      this.arrowList.forEach(item => {
+        this.drawGradientArrow(item)
+      })
+    }
+  }
 
-  // 处理箭头saveAction
-  handleArrowSaveAction() {
+  // 处理箭头MouseUP
+  handleArrowMouseUp() {
     if (this.currentTool === 'arrow') {
       if (this.currentOperationInfo && this.currentOperationState === 'add') {
-        this.arrowList.push(JSON.parse(JSON.stringify(this.currentOperationInfo)))
+        // 判断信息是否符合
+        const {startX, startY, endX, endY} = this.currentOperationInfo
+        if (!(endX - startX > 0 || endY - startY > 0)) {
+          this.arrowList.pop()
+          this.setCurrentShapeId()
+          this.currentOperationInfo = null
+        }
+        //  else {
+        //   this.setRectEndPointCursor()
+        // }
       }
     }
   }
@@ -790,7 +788,6 @@ class CanvasImgEditor {
     if (this.currentTool === "scribble") {
       if (this.currentOperationInfo) {
         this.scribbleList.push(JSON.parse(JSON.stringify(this.currentOperationInfo)))
-        console.log('handleArrowSaveAction---this.scribbleList', this.scribbleList);
       }
     }
   }
@@ -799,7 +796,6 @@ class CanvasImgEditor {
     if (this.currentTool === "eraser") {
       if (this.currentOperationInfo) {
         this.eraserList.push(JSON.parse(JSON.stringify(this.currentOperationInfo)))
-        console.log('handleArrowSaveAction---this.eraserList', this.eraserList);
       }
       // 恢复成绘制状态
       this.ctx.globalCompositeOperation = 'source-over';
@@ -1140,12 +1136,6 @@ class CanvasImgEditor {
   }
   handleRectMouseUp() {
     if (this.currentTool === "rect" && this.rectOperationState === 'add') {
-      // if (this.currentOperationInfo) {
-      //   const sameItem = this.rectList.find(item => item.id === this.currentOperationInfo.id)
-      //   if (!sameItem) {
-      //     this.rectList.push(JSON.parse(JSON.stringify(this.currentOperationInfo)))
-      //   }
-      // }
       // 判断矩形是否符合
       if (this.currentOperationInfo.width === 0 || this.currentOperationInfo.height === 0) {
         this.rectList.pop()
@@ -1848,14 +1838,7 @@ class CanvasImgEditor {
   // 重新绘制canvas
   reDrawCanvas() {
     this.clearCanvas()
-    if (this.arrowList && this.arrowList.length) {
-      this.arrowList.forEach(item => {
-        this.drawGradientArrow(
-          item,
-          true // 标记为重绘
-        )
-      })
-    }
+
     if (this.scribbleList && this.scribbleList.length) {
       this.scribbleList.forEach(item => {
         if (item.list?.length) {
@@ -1874,6 +1857,7 @@ class CanvasImgEditor {
         }
       })
     }
+    this.redrawArrowList()
     this.redrawRectList()
     this.redrawMosaicList() // 绘制马赛克
     this.redrawTextList()
@@ -2130,6 +2114,33 @@ class CanvasImgEditor {
       type: 'circle'
     }
   }
+  checkArrowPoint(list, currentX, currentY) {
+    let selectedId = -1
+    if (list && list.length > 0) {
+      let arrow = null
+      // 从后往前遍历，后面绘制的优先级高于前面被绘制的
+      for (let len = list.length, i = len - 1; i >= 0; i--) {
+        arrow = list[i]
+        if (this.insideRect(arrow.startX - 2, arrow.startY - 2, 4, 4, currentX, currentY)) {
+          this.modifyCursor('move')
+          selectedId = arrow.id
+        } else if (this.insideRect(arrow.endX - 2, arrow.endY - 2, 4, 4, currentX, currentY)) {
+          this.modifyCursor('move')
+          console.log('箭头尾部');
+          selectedId = arrow.id
+        } else if (this.isPointOnThickLine(currentX, currentY, arrow.startX, arrow.startY, arrow.endX, arrow.endY, arrow.endWidth)) {
+          console.log('在箭头线段上')
+          this.modifyCursor('move')
+          selectedId = arrow.id
+
+        }
+      }
+    }
+    return {
+      id: selectedId,
+      type: 'arrow'
+    }
+  }
   // 处理鼠标hover
   handleElseMouseMove(currentX, currentY) {
     console.log('handleElseMouseMove', currentX, currentY);
@@ -2139,6 +2150,9 @@ class CanvasImgEditor {
     selected = this.checkCirclePoint(this.circleList, currentX, currentY)
     if (selected.id === -1) {
       selected = this.checkRectPoint(this.rectList, currentX, currentY)
+    } 
+    if (selected.id === -1) {
+      selected = this.checkArrowPoint(this.arrowList, currentX, currentY)
     }
 
     const { id, type } = selected
