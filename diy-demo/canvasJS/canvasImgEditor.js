@@ -64,13 +64,15 @@ class CanvasImgEditor {
     this.startX = 0
     this.startY = 0;
     this.currentTool = 'text'; // 默认工具为画箭头
-    this.changeToolTypeAuto = defaultConfig.changeToolTypeAuto // 是否允许在编辑过程中自动切换操作类型（通过鼠标点击圆、矩形、箭头、之间切换类型）
+    // 是否允许在编辑过程中自动切换操作类型（通过鼠标点击圆、矩形、箭头、之间切换类型）
+    this.changeToolTypeAuto = options.changeToolTypeAuto !== undefined ? options.changeToolTypeAuto :defaultConfig.changeToolTypeAuto 
     this.hoverActiveShapeId = defaultConfig.hoverActiveShapeId // 非绘图状态下，鼠标移动时hover的图形ID
     this.hoverActiveShapeType = defaultConfig.hoverActiveShapeType // 非绘图状态下，鼠标移动时hover的图形类型
     this.actions = []; // 用于存储操作的历史记录
     this.undoStack = []; // 用于存储撤销的操作
     this.undoState = false // 当前撤销状态，是否允许撤销，默认false
     this.redoState = false // 当前是否允许取消撤销，默认false
+    this.clearState = false // 当前是否允许复原，默认false
     this.textElements = []; // 用于存储文本元素及其位置信息
     this.ellipses = []; // 存储所有圆/椭圆信息
     this.currentWidth = 2
@@ -138,7 +140,11 @@ class CanvasImgEditor {
     this.scaleRadioMin = 0.2 // 最小缩放比例
     this.scaleOffsetX = 0
     this.scaleOffsetY = 0
+    this.enlargeState = true
+    this.reduceState = true
+
     this.callbackObj = {} // 注册的事件对象
+  
 
     this.loadCanvas(options);
     this.initMoveEvent()
@@ -1725,6 +1731,7 @@ class CanvasImgEditor {
       // 将鼠标样式切换回默认
       this.modifyCursor('auto')
       this.onListenUndoState()
+      this.onListenClearState()
     }
 
     console.log('saveaction-this.actions', this.actions);
@@ -1769,6 +1776,7 @@ class CanvasImgEditor {
       this.reDrawCanvas()
       this.onListenUndoState()
       this.onListenRedoState()
+      this.onListenClearState()
     }
   }
 
@@ -1795,6 +1803,7 @@ class CanvasImgEditor {
       this.reDrawCanvas()
       this.onListenRedoState()
       this.onListenUndoState()
+      this.onListenClearState()
     }
   }
 
@@ -1803,20 +1812,53 @@ class CanvasImgEditor {
     const state = this.actions.length > 0
     if (this.undoState !== state) {
       this.undoState = state
-      if (typeof this.callbackObj.checkUndo === 'function') {
+      if (isFunction(this.callbackObj.checkUndo)) {
         this.callbackObj.checkUndo(this.undoState)
       }
     }
+    return state
   }
-
+  // 监听取消撤销状态
   onListenRedoState() {
     const state = this.undoStack.length > 0
     if (this.redoState !== state) {
       this.redoState = state
-      if (typeof this.callbackObj.checkRedo === 'function') {
+      if (isFunction(this.callbackObj.checkRedo)) {
         this.callbackObj.checkRedo(this.redoState)
       }
     }
+    return state
+  }
+  // 监听复原状态
+  onListenClearState(isImmediate) {
+    const state = this.actions.length > 0
+    if (this.clearState !== state) {
+      this.clearState = state
+      if (isFunction(this.callbackObj.checkClear)&& !isImmediate) {
+        this.callbackObj.checkClear(this.clearState)
+      }
+    }
+    return state
+  }
+  onListenEnlargeState(isImmediate) {
+    const state = this.scaleRadio >= this.scaleRadioMax
+    if(this.enlargeState !== state) {
+      this.enlargeState = state
+      if(isFunction(this.callbackObj.checkEnlarge) && !isImmediate) {
+        this.callbackObj.checkEnlarge(state)
+      }
+    }
+    return state
+  }
+  onListenReduceState(isImmediate) {
+    const state = this.scaleRadio <= this.scaleRadioMin
+    if(this.reduceState !== state) {
+      this.reduceState = state
+      if(isFunction(this.callbackObj.checkEnlarge) && !isImmediate) {
+        this.callbackObj.checkReduce(state)
+      }
+    }
+    return state
   }
 
   // 复原
@@ -1832,6 +1874,7 @@ class CanvasImgEditor {
     this.hideTextareaNode()
     this.onListenUndoState()
     this.onListenRedoState()
+    this.onListenClearState()
   }
 
   // 恢复默认配置
@@ -1914,20 +1957,6 @@ class CanvasImgEditor {
     this.mosaicDimensions = val - 0
   }
 
-  // 放大canvas
-  enlarge() {
-    const rect = this.canvas.getBoundingClientRect();
-    this.canvasWidth = rect.width * 2;
-    this.canvasHeight = rect.height * 2;
-  }
-
-  // 缩小canvas
-  reduce() {
-    const rect = this.canvas.getBoundingClientRect();
-    this.canvasWidth = rect.width;
-    this.canvasHeight = rect.height;
-  }
-
   // 滚轮进行缩放
   handleMouseWheel(e) {
     let newScaleRadio = this.scaleRadio
@@ -1940,7 +1969,8 @@ class CanvasImgEditor {
       newScaleRadio = (this.scaleRadio * 10 - this.scaleChangeValue * 10) / 10
     }
     this.translateCanvas(e.offsetX, e.offsetY, newScaleRadio)
-
+    this.onListenEnlargeState()
+    this.onListenReduceState()
   }
 
   // 缩放canvas， true-放大，false-缩小，默认放大
@@ -1962,6 +1992,8 @@ class CanvasImgEditor {
       this.translateCanvas(offsetX, offsetY, newScaleRadio)
       // this.drawScale()
     }
+    this.onListenEnlargeState()
+    this.onListenReduceState()
   }
 
   translateCanvas(offsetX, offsetY, newScaleRadio, isRestore = false) {
@@ -2072,11 +2104,23 @@ class CanvasImgEditor {
   registerCallback(callbackObj) {
     this.callbackObj.checkUndo = callbackObj.checkUndo || null
     if (this.callbackObj.checkUndo) {
-      this.callbackObj.checkUndo(this.actions.length > 0)
+      this.callbackObj.checkUndo(this.onListenUndoState(true))
     }
     this.callbackObj.checkRedo = callbackObj.checkRedo || null
     if (this.callbackObj.checkRedo) {
-      this.callbackObj.checkRedo(this.undoStack.length > 0)
+      this.callbackObj.checkRedo(this.onListenRedoState(true))
+    }
+    this.callbackObj.checkClear = callbackObj.checkClear || null
+    if (this.callbackObj.checkClear) {
+      this.callbackObj.checkClear(this.onListenClearState(true))
+    }
+    this.callbackObj.checkEnlarge = callbackObj.checkEnlarge || null
+    if (this.callbackObj.checkEnlarge) {
+      this.callbackObj.checkEnlarge(this.onListenReduceState(true))
+    }
+    this.callbackObj.checkReduce = callbackObj.checkReduce || null
+    if (this.callbackObj.checkReduce) {
+      this.callbackObj.checkReduce(this.onListenReduceState(true))
     }
     this.callbackObj.onClear = callbackObj.onClear || null
     this.callbackObj.toolTypeChange = callbackObj.toolTypeChange || null
