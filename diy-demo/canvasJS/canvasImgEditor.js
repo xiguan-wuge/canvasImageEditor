@@ -385,9 +385,9 @@ class CanvasImgEditor {
       // 从后往前遍历，后面绘制的优先级高于前面被绘制的
       for (let len = list.length, i = len - 1; i >= 0; i--) {
         arrow = list[i]
-        const {startX, startY, endX, endY, startPoint, endWidth} = arrow
-        const {endPointWidth} = startPoint
-        const halfEndPointWidth = endPointWidth/2
+        const { startX, startY, endX, endY, startPoint, endWidth } = arrow
+        const { endPointWidth } = startPoint
+        const halfEndPointWidth = endPointWidth / 2
         if (this.insideRect(startX - (endPointWidth), startY - 2, 4, 4, this.startX, this.startY)) {
           this.changeCurrentShapeOnMouseDown(arrow)
           this.resizeGradientArrow()
@@ -496,7 +496,7 @@ class CanvasImgEditor {
 
   // 绘制渐变线条的箭头
   drawGradientArrow(item) {
-    const { startX, startY, endX, endY, startWidth, endWidth, color, startPoint, endPoint } = item
+    const { startX, startY, endX, endY, startWidth, endWidth, color } = item
     const { ctx } = this
     const steps = 300; // 分段数量
     const dx = (endX - startX) / steps;
@@ -520,37 +520,37 @@ class CanvasImgEditor {
       ctx.lineWidth = lineWidth;
       ctx.stroke();
     }
+    // ctx.closePath()
 
     // 绘制箭头尾部
-    const angle = Math.atan2(endY - startY, endX - startX); // 箭头始终与线段垂直
+    const angle = Math.atan2(endY - startY, endX - startX);
     const headLength = endWidth * 2;
-    // 依次绘制箭头的三个点
+
     ctx.beginPath();
+    // 终点
     ctx.moveTo(endX, endY);
-    // 绘制右侧点
+    // 右侧点
     ctx.lineTo(
       endX - headLength * Math.cos(angle - Math.PI / 6),
       endY - headLength * Math.sin(angle - Math.PI / 6)
     );
-    // 绘制左侧点
+    // 左侧点
     ctx.lineTo(
       endX - headLength * Math.cos(angle + Math.PI / 6),
       endY - headLength * Math.sin(angle + Math.PI / 6)
     );
-    ctx.lineTo(endX, endY);
-    ctx.lineTo(
-      endX - headLength * Math.cos(angle - Math.PI / 6),
-      endY - headLength * Math.sin(angle - Math.PI / 6)
-    );
+    ctx.closePath();
     ctx.strokeStyle = color;
     ctx.lineWidth = endWidth;
     ctx.stroke();
     ctx.fillStyle = color;
     ctx.fill();
+
     if (this.checkCurrentShapeId(item.id)) {
-      this.drawArrowEndPoint(item)
+      this.drawArrowEndPoint(item);
     }
   }
+
   // 绘制箭头首尾的端点
   drawArrowEndPoint(item) {
     const { startPoint, endPoint } = item
@@ -625,7 +625,7 @@ class CanvasImgEditor {
     if (this.currentTool === 'arrow') {
       if (this.currentOperationInfo && this.currentOperationState === 'add') {
         // 判断信息是否符合
-        const {startX, startY, endX, endY} = this.currentOperationInfo
+        const { startX, startY, endX, endY } = this.currentOperationInfo
         if (!(endX - startX > 0 || endY - startY > 0)) {
           this.arrowList.pop()
           this.setCurrentShapeId()
@@ -760,16 +760,16 @@ class CanvasImgEditor {
     ctx.lineWidth = item.width; // 选择线条宽度
     ctx.moveTo(item.startX, item.startY);
     ctx.lineTo(item.endX, item.endY);
-    ctx.closePath();
     ctx.stroke();
-    ctx.restore()
+    ctx.fill()
+    ctx.closePath();
+    // ctx.restore()
 
     if (isNormal) {
       // 绘制完后，更新startX/Y
       this.startX = item.endX
       this.startY = item.endY
     }
-
   }
 
   // 橡皮檫
@@ -803,9 +803,7 @@ class CanvasImgEditor {
   }
 
   handleTextMouseDown(startX, startY, isDoubleClick = false) {
-    console.log('handleTextMouseDown222222222', startX, startY, isDoubleClick);
     if (this.inTextEdit) {
-      console.log('正处在文本编辑状态')
       // this.exitTextEditStatus()
       // this.textMouseUploadNoSaveAction = true
       this.isDrawing = false
@@ -818,6 +816,12 @@ class CanvasImgEditor {
     if (selectedText) {
       this.currentOperationInfo = selectedText
       this.currentOperationState = 'selected'
+      setTimeout(()=> {
+        // 长按300ms后，鼠标改为拖动样式
+        if(this.currentOperationState === 'selected') {
+          this.modifyCursor('move')
+        }
+      },300)
     } else {
       const newText = {
         id: canvasGlobalId++,
@@ -830,9 +834,9 @@ class CanvasImgEditor {
         startX,
         startY,
       }
-      const same = this.textList.some(item => item.id === newText.id)
-      console.log('text-add-same', same);
-      if (!same) {
+      // const same = this.textList.some(item => item.id === newText.id)
+      // console.log('text-add-same', same);
+      // if (!same) {
         // this.textList.push(newText)
         this.textareaNode.style.left = `${startX}px`
         this.textareaNode.style.top = `${startY}px`
@@ -844,7 +848,7 @@ class CanvasImgEditor {
           this.textareaNode.focus()
         }, 300)
         this.currentOperationInfo = newText
-      }
+      // }
 
     }
     console.log('text---position', startX, startY);
@@ -915,6 +919,7 @@ class CanvasImgEditor {
     const newClickTime = new Date().getTime();
     if (this.inTextEdit) {
       this.exitTextEditStatus()
+      this.modifyCursor('auto')
       // if(this.textMouseUploadNoSaveAction) {
       //   this.textMouseUploadNoSaveAction = false
     } else if (this.currentOperationState === 'selected') {
@@ -1789,6 +1794,7 @@ class CanvasImgEditor {
       }
       this.reDrawCanvas()
       this.onListenRedoState()
+      this.onListenUndoState()
     }
   }
 
@@ -2143,23 +2149,33 @@ class CanvasImgEditor {
   }
   // 处理鼠标hover
   handleElseMouseMove(currentX, currentY) {
-    console.log('handleElseMouseMove', currentX, currentY);
-    console.log('this.circleList', this.circleList);
     let selected = {}
 
     selected = this.checkCirclePoint(this.circleList, currentX, currentY)
     if (selected.id === -1) {
       selected = this.checkRectPoint(this.rectList, currentX, currentY)
-    } 
+    }
     if (selected.id === -1) {
       selected = this.checkArrowPoint(this.arrowList, currentX, currentY)
+    }
+    if (selected.id === -1) {
+      selected = this.checkTextHover(this.textList, currentX, currentY)
     }
 
     const { id, type } = selected
     this.hoverActiveShapeId = id
     this.hoverActiveShapeType = type
-
-
+  }
+  checkTextHover(list, currentX, currentY) {
+    let selectedId = -1
+    const selectedText = this.getTextAtPosition(currentX, currentY)
+    if (selectedText) {
+      selectedId = selectedText.id
+    }
+    return {
+      id: selectedId,
+      type: 'text'
+    }
   }
 
 
