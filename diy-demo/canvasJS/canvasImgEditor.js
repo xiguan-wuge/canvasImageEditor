@@ -891,6 +891,7 @@ class CanvasImgEditor {
       // this.textList.push(newText)
       this.textareaNode.style.left = `${startX}px`
       this.textareaNode.style.top = `${startY}px`
+      this.textareaNode.style.color = this.currentColor
       this.textareaNode.style.display = 'block';
       this.textareaNode.value = newText.text;
       this.inTextEdit = true
@@ -907,12 +908,20 @@ class CanvasImgEditor {
 
   // 区分文本二次编辑还是移动，采用mousedown 和mouseup 模拟click事件
   handleTextEditAgainOrMove(selectedText, isDoubleClick) {
+    const {ctx} = this
     if (isDoubleClick) {
       // 双击状态是编辑文本
+      const selectedTextObj = ctx.measureText(selectedText.text)
+      if(selectedTextObj) {
+        console.log('selectedTextObj',selectedTextObj);
+        this.textareaNode.style.width = `${selectedTextObj.width}px`
+      }
       this.currentOperationInfo = selectedText
       this.currentOperationState = 'edit'
-      this.textareaNode.style.left = `${selectedText.startX}px`
-      this.textareaNode.style.top = `${selectedText.startY - this.currentOperationInfo.fontSize}px`
+      this.textareaNode.style.left = `${selectedText.startX -1}px`
+      // this.textareaNode.style.top = `${selectedText.startY - this.currentOperationInfo.fontSize + 2}px`
+      this.textareaNode.style.top = `${selectedText.startY + 2}px`
+      this.textareaNode.style.color = selectedText.color;
       this.textareaNode.style.display = 'block';
       this.inTextEdit = true
       this.textareaNode.value = selectedText.text;
@@ -999,6 +1008,8 @@ class CanvasImgEditor {
       //   this._lastClickTime = newClickTime;
     } else if (this.currentOperationState === 'edit') {
       this.exitTextEditStatus()
+    } else if (this.currentOperationState === 'add'){
+      this.inTextEdit = true
     } else if (this.isDrawing) {
       console.log('文本拖拽状态');
       this.isDrawing = false
@@ -1010,10 +1021,20 @@ class CanvasImgEditor {
   handleTextSaveAction() {
     if (this.currentTool === 'text' && !this.inTextEdit) {
       const newItem = JSON.parse(JSON.stringify(this.currentOperationInfo))
-      const same = this.textList.some(item => item.id === newItem.id)
-      console.log('handleTextSaveAction=same', same);
+      const same = this.textList.find(item => item.id === newItem.id)
       if (!same) {
         this.textList.push(newItem)
+      } else {
+        // 历史栈中文本去重
+        const noChange = newItem.id === same.id 
+          && newItem.text === same.text
+          && newItem.startX === same.startX
+          && newItem.startY === same.startY
+          && newItem.fontSize === same.fontSize
+          && newItem.color === same.color
+          if(noChange) {
+            this.currentOperationInfo = null
+          }
       }
     }
   }
@@ -1032,14 +1053,14 @@ class CanvasImgEditor {
   // 文本
   drawText(item) {
     const { ctx } = this
-    ctx.font = `${item.fontSize}px`
+    ctx.font = `${item.fontSize}px serif`
     // 设置文本的填充颜色
     ctx.fillStyle = item.color; // 文本填充颜色
     // 设置文本的描边颜色
     ctx.strokeStyle = item.color; // 文本描边颜色
     // 设置描边宽度
     ctx.lineWidth = item.lineWidth; // 描边宽度
-    ctx.strokeText(item.text, item.startX, item.startY, item.maxWidth);
+    ctx.fillText(item.text, item.startX, item.startY, item.maxWidth);
   }
 
   // 设置字体大小
@@ -1058,9 +1079,35 @@ class CanvasImgEditor {
     const textarea = document.createElement('textarea');
 
     textarea.className = 'canvas-textarea';
-    // textarea.setAttribute('style', 'position: absolute;display: none;border: 1px solid gray;padding: 2px;z-index:9999;')
-    textarea.setAttribute('style', `position: absolute; padding: 0px; display: none; border: 1px bold #000; overflow: hidden; resize: none; outline: none; border-radius: 0px; background-color: #fff; appearance: none; z-index: 99999; white-space: pre; width: 100px; height: ${this.textFontSize}px; transform: rotate(0deg); color: rgb(255, 52, 64); font-size: ${this.textFontSize}px; font-family: &quot;Times New Roman&quot;; font-weight: normal; text-align: left; line-height: 1.26; transform-origin: left top;`);
-    // textarea.setAttribute('wrap', 'off');
+    const textStyleObj = {
+      position: 'absolute',
+      padding: '0px',
+      display: 'none',
+      border: '1px bold #000',
+      overflow: 'hidden',
+      resize: 'none',
+      outline: 'none',
+      'border-radius': '0px',
+      'background-color': 'transparent',
+      appearance: 'none',
+      'z-index': 99999,
+      'white-space': 'pre',
+      width: '100px',
+      height: `${this.textFontSize}px`,
+      transform: 'rotate(0deg)',
+      'text-align': 'left',
+      'line-height': 1,
+      color: 'rgb(255, 52, 64)',
+      'font-size': `${this.textFontSize}px`,
+      'font-family': '&quot;Times New Roman&quot;',
+      'font-weight': 'normal',
+      'transform-origin': 'left top'
+    }
+    console.log('textStyleObj', textStyleObj);
+    let styleStr = Object.keys(textStyleObj).map(item => {
+      return `${item}:${textStyleObj[item]};`
+    }).join('')
+    textarea.setAttribute('style', styleStr);
 
     container.appendChild(textarea);
     this.textareaNode = textarea;
