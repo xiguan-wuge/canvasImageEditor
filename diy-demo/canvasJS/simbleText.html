@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Editable TextArea in Canvas</title>
+  <style>
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+      background-color: #f0f0f0;
+    }
+
+    #canvas-container {
+      position: relative;
+    }
+
+    textarea {
+      position: absolute;
+      font-size: 16px;
+      padding: 5px;
+      border: 2px solid #333;
+      box-sizing: border-box;
+      resize: none;
+      outline: none;
+      display: none;
+      /* Initially hidden */
+    }
+  </style>
+</head>
+
+<body>
+  <div id="canvas-container">
+    <canvas id="myCanvas" width="800" height="600" style="border:1px solid #ccc;"></canvas>
+    <textarea id="textEditor"></textarea>
+  </div>
+
+  <script>
+    class SimpleText {
+      constructor(options) {
+        this.text = options.text || 'Hello, World!';
+        this.fontSize = options.fontSize || 30;
+        this.fontFamily = options.fontFamily || 'Arial';
+        this.fontWeight = options.fontWeight || 'normal';
+        this.fontStyle = options.fontStyle || 'normal';
+        this.textAlign = options.textAlign || 'left';
+        this.fill = options.fill || 'black';
+        this.stroke = options.stroke || null;
+        this.strokeWidth = options.strokeWidth || 1;
+        this.x = options.x || 100;
+        this.y = options.y || 100;
+        this.maxWidth = options.maxWidth || null;
+        this.lineHeight = options.lineHeight || 1.2; // 行高
+      }
+
+      _getFontDeclaration() {
+        return `${this.fontStyle} ${this.fontWeight} ${this.fontSize}px ${this.fontFamily}`;
+      }
+
+      _splitTextIntoLines(ctx, text) {
+        const words = text.split(' ');
+        const lines = [];
+        let currentLine = words[0];
+
+        for (let i = 1; i < words.length; i++) {
+          const word = words[i];
+          const width = ctx.measureText(currentLine + ' ' + word).width;
+          if (this.maxWidth && width > this.maxWidth) {
+            lines.push(currentLine);
+            currentLine = word;
+          } else {
+            currentLine += ' ' + word;
+          }
+        }
+        lines.push(currentLine);
+        return lines;
+      }
+
+      _getTextMetrics(ctx) {
+        const lines = this.text.split('\n');
+        const lineMetrics = lines.map(line => this._splitTextIntoLines(ctx, line));
+        const maxWidth = Math.max(...lineMetrics.map(l => Math.max(...l.map(line => ctx.measureText(line).width))));
+        const totalHeight = lineMetrics.length * this.fontSize * this.lineHeight;
+        return { width: maxWidth, height: totalHeight, lines: lineMetrics.flat() };
+      }
+
+      draw(ctx) {
+        ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height); // 清除画布
+        ctx.save();
+        ctx.font = this._getFontDeclaration();
+        ctx.textAlign = this.textAlign;
+        ctx.textBaseline = 'top';
+
+        const metrics = this._getTextMetrics(ctx);
+        let y = this.y;
+
+        // 绘制边框
+        ctx.strokeStyle = '#333';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(this.x - 5, this.y - 5, metrics.width + 10, metrics.height + 10);
+
+        // 绘制文本
+        metrics.lines.forEach((line) => {
+          if (this.stroke && this.strokeWidth) {
+            ctx.lineWidth = this.strokeWidth;
+            ctx.strokeStyle = this.stroke;
+            ctx.strokeText(line, this.x, y);
+          }
+
+          if (this.fill) {
+            ctx.fillStyle = this.fill;
+            ctx.fillText(line, this.x, y);
+          }
+
+          y += this.fontSize * this.lineHeight;
+        });
+
+        ctx.restore();
+
+        // 返回边框的宽高
+        return { width: metrics.width + 10, height: metrics.height + 10 };
+      }
+
+      update(options) {
+        Object.assign(this, options);
+      }
+    }
+
+    // 初始化 Canvas 和 SimpleText 实例
+    const canvas = document.getElementById('myCanvas');
+    const ctx = canvas.getContext('2d');
+    const textarea = document.getElementById('textEditor');
+    let isEditing = false;
+
+    let myText = new SimpleText({
+      text: 'Click here to edit this text.',
+      fontSize: 30,
+      fontFamily: 'Helvetica',
+      lineHeight: 1.5,
+      maxWidth: 700,
+      x: 50,
+      y: 50,
+      fill: 'black',
+      stroke: null,
+      strokeWidth: 1
+    });
+
+    function redrawText() {
+      const { width, height } = myText.draw(ctx);
+      textarea.style.width = `${width}px`;
+      textarea.style.height = `${height}px`;
+    }
+
+    // 处理点击事件，显示文本编辑器
+    canvas.addEventListener('click', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+
+      const { width, height } = myText.draw(ctx);
+      const withinX = x >= myText.x - 5 && x <= myText.x - 5 + width;
+      const withinY = y >= myText.y - 5 && y <= myText.y - 5 + height;
+
+      if (withinX && withinY) {
+        textarea.value = myText.text;
+        textarea.style.left = `${myText.x - 5}px`;
+        textarea.style.top = `${myText.y - 5}px`;
+        textarea.style.fontSize = `${myText.fontSize}px`;
+        textarea.style.fontFamily = myText.fontFamily;
+        textarea.style.display = 'block';
+        textarea.focus();
+        isEditing = true;
+      }
+    });
+
+    // 处理文本编辑事件
+    textarea.addEventListener('input', () => {
+      myText.update({ text: textarea.value });
+      redrawText();
+    });
+
+    // 处理失去焦点事件
+    textarea.addEventListener('blur', () => {
+      textarea.style.display = 'none';
+      isEditing = false;
+    });
+
+    // 初始绘制
+    redrawText();
+  </script>
+</body>
+
+</html>

@@ -889,8 +889,8 @@ class CanvasImgEditor {
       // console.log('text-add-same', same);
       // if (!same) {
       // this.textList.push(newText)
-      this.textareaNode.style.left = `${startX}px`
-      this.textareaNode.style.top = `${startY}px`
+      this.textareaNode.style.left = `${startX -1 }px`
+      this.textareaNode.style.top = `${startY - this.textFontSize +2}px`
       this.textareaNode.style.color = this.currentColor
       this.textareaNode.style.display = 'block';
       this.textareaNode.value = newText.text;
@@ -918,13 +918,17 @@ class CanvasImgEditor {
       }
       this.currentOperationInfo = selectedText
       this.currentOperationState = 'edit'
+      
       this.textareaNode.style.left = `${selectedText.startX -1}px`
-      // this.textareaNode.style.top = `${selectedText.startY - this.currentOperationInfo.fontSize + 2}px`
-      this.textareaNode.style.top = `${selectedText.startY + 2}px`
+      this.textareaNode.style.top = `${selectedText.startY - this.currentOperationInfo.fontSize + 2}px`
+      // this.textareaNode.style.top = `${selectedText.startY + 2}px`
       this.textareaNode.style.color = selectedText.color;
       this.textareaNode.style.display = 'block';
       this.inTextEdit = true
       this.textareaNode.value = selectedText.text;
+      selectedText.colorBack = selectedText.color
+      selectedText.color = 'rgba(0, 0, 0, 0)'
+      this.redrawCanvas()
       setTimeout(() => {
         this.textareaNode.focus()
       }, 300)
@@ -946,6 +950,10 @@ class CanvasImgEditor {
       const beforeText = this.currentOperationInfo.text
       this.currentOperationInfo.text = this.textareaNode.value
       this.textareaNode.style.display = 'none'
+      if(this.currentOperationInfo.colorBack) {
+        this.currentOperationInfo.color = this.currentOperationInfo.colorBack
+        this.currentOperationInfo.colorBack = null
+      }
       if (beforeText === this.currentOperationInfo.text && beforeText === '') {
         // 前后文本都是空，不计入历史栈
         return
