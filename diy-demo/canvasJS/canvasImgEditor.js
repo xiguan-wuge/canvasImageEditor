@@ -883,6 +883,7 @@ class CanvasImgEditor {
         color: this.currentColor,
         lineWidth: this.textFontWeight,
         fontSize: this.textFontSize,
+        lineHeight: 1.2,
         maxWidth: this.canvasWidth,
         startX,
         startY,
@@ -928,8 +929,8 @@ class CanvasImgEditor {
       this.textareaNode.style.display = 'block';
       this.inTextEdit = true
       this.textareaNode.value = selectedText.text;
-      selectedText.colorBack = selectedText.color
-      selectedText.color = 'rgba(0, 0, 0, 0)'
+      // selectedText.colorBack = selectedText.color
+      // selectedText.color = 'rgba(0, 0, 0, 0)'
       this.redrawCanvas()
       setTimeout(() => {
         this.textareaNode.focus()
@@ -1061,18 +1062,92 @@ class CanvasImgEditor {
   }
 
   // 文本
-  drawText(item) {
-    const { ctx } = this
+  // drawText(item) {
+  //   const { ctx } = this
+  //   ctx.font = `${item.fontSize}px serif`
+  //   // 设置文本的填充颜色
+  //   ctx.fillStyle = item.color; // 文本填充颜色
+  //   // 设置文本的描边颜色
+  //   ctx.strokeStyle = item.color; // 文本描边颜色
+  //   // 设置描边宽度
+  //   ctx.lineWidth = item.lineWidth; // 描边宽度
+  //   ctx.fillText(item.text, item.startX, item.startY, item.maxWidth);
+  // }
+  drawText(item, isHide = false) {
+    const {ctx} = this
+    // ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height); // 清除画布
+    // ctx.save();
     ctx.font = `${item.fontSize}px serif`
-    // 设置文本的填充颜色
-    ctx.fillStyle = item.color; // 文本填充颜色
-    // 设置文本的描边颜色
-    ctx.strokeStyle = item.color; // 文本描边颜色
-    // 设置描边宽度
-    ctx.lineWidth = item.lineWidth; // 描边宽度
-    ctx.fillText(item.text, item.startX, item.startY, item.maxWidth);
-  }
+    // ctx.textAlign = this.textAlign;
+    ctx.textBaseline = 'top';
 
+    const metrics = this._getTextMetrics(item);
+    // let y = this.y;
+    let y = item.startY
+
+    // 绘制边框
+    let borderColor = isHide ? 'rgba(0, 0, 0, 0)' : '#333'
+    ctx.strokeStyle = borderColor;
+    ctx.lineWidth = 1;
+    ctx.strokeRect(item.startX - 5, item.startY - 5, metrics.width + 10, metrics.height + 10);
+    
+    // 绘制文本
+    let fillColor = isHide ? 'rgba(0, 0, 0, 0)' : item.color
+    metrics.lines.forEach((line) => {
+      // if (this.stroke && this.strokeWidth) {
+      //   ctx.lineWidth = this.strokeWidth;
+      //   ctx.strokeStyle = this.stroke;
+      //   ctx.strokeText(line, this.x, y);
+      // }
+
+      // if (this.fill) {
+        ctx.fillStyle = fillColor;
+        ctx.fillText(line, item.startX, y);
+      // }
+
+      y += item.fontSize * item.lineHeight;
+    });
+
+    // ctx.restore();
+
+    // 返回边框的宽高
+    return { width: metrics.width + 10, height: metrics.height + 10 };
+  }
+  _getTextMetrics(item) {
+    const {ctx} = this
+    const lines = item.text.split('\n');
+    const lineMetrics = lines.map(line => this._splitTextIntoLines(line, item));
+    const maxWidth = Math.max(...lineMetrics.map(l => Math.max(...l.map(line => ctx.measureText(line).width))));
+    const totalHeight = lineMetrics.length * item.fontSize * item.lineHeight;
+    return { width: maxWidth, height: totalHeight, lines: lineMetrics.flat() };
+  }
+  _splitTextIntoLines(text, item) {
+    const {ctx} = this
+    const words = text.split(' ');
+    const lines = [];
+    let currentLine = words[0];
+
+    for (let i = 1; i < words.length; i++) {
+      const word = words[i];
+      const width = ctx.measureText(currentLine + ' ' + word).width;
+      if (item.maxWidth && width > item.maxWidth) {
+        lines.push(currentLine);
+        currentLine = word;
+      } else {
+        currentLine += ' ' + word;
+      }
+    }
+    lines.push(currentLine);
+    return lines;
+  }
+  updateTextarea() {
+    this.currentOperationInfo.text = this.textareaNode.value
+    const {width, height} = this.drawText(this.currentOperationInfo, true)
+    this.currentOperationInfo.width = width
+    this.currentOperationInfo.height = height
+    this.textareaNode.style.width = `${width}px`
+    this.textareaNode.style.height = `${height}px`
+  }
   // 设置字体大小
   setTextFontSize(fontSize) {
     this.textFontSize = fontSize
@@ -1106,7 +1181,7 @@ class CanvasImgEditor {
       height: `${this.textFontSize}px`,
       transform: 'rotate(0deg)',
       'text-align': 'left',
-      'line-height': 1,
+      'line-height': 1.2,
       color: 'rgb(255, 52, 64)',
       'font-size': `${this.textFontSize}px`,
       'font-family': '&quot;Times New Roman&quot;',
@@ -1125,6 +1200,7 @@ class CanvasImgEditor {
     // 处理 Enter 键，完成文本输入
     this.textareaNode.addEventListener('keydown', (e) => {
       console.log('keydown');
+      this.updateTextarea()
       if (e.key === 'Enter') {
         console.log('keyEnter');
         // this.textareaNode.blur();
@@ -1144,14 +1220,18 @@ class CanvasImgEditor {
     const { textList, ctx } = this
     for (let i = textList.length - 1; i >= 0; i--) {
       const textObject = textList[i];
-      const textWidth = ctx.measureText(textObject.text).width;
-      const textHeight = textObject.fontSize; // 大致的高度估计
+      // const textWidth = ctx.measureText(textObject.text).width;
+      // const textHeight = textObject.fontSize; // 大致的高度估计
 
-      if (
-        x >= textObject.startX && x <= textObject.startX + textWidth &&
-        y <= textObject.startY && y >= textObject.startY - textHeight
-      ) {
-        return textObject;
+      // if (
+      //   x >= textObject.startX && x <= textObject.startX + textWidth &&
+      //   y <= textObject.startY && y >= textObject.startY - textHeight
+      // ) {
+      //   return textObject;
+      // }
+      const {startX, startY, width, height} = textObject
+      if(this.insideRect(startX, startY, width, height, x, y)) {
+        return textObject
       }
     }
     return null;
