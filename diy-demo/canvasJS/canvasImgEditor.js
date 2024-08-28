@@ -503,9 +503,18 @@ class CanvasImgEditor {
   drawGradientArrow(item) {
     const { startX, startY, endX, endY, startWidth, endWidth, color } = item
     const { ctx } = this
+    // 计算箭头尾部左右端点
+    const angle = Math.atan2(endY - startY, endX - startX);
+    const headLength = endWidth * 2;
+    const rightX = endX - headLength * Math.cos(angle - Math.PI / 6)
+    const rightY = endY - headLength * Math.sin(angle - Math.PI / 6)
+    const leftX = endX - headLength * Math.cos(angle + Math.PI / 6)
+    const leftY = endY - headLength * Math.sin(angle + Math.PI / 6)
+
     const steps = 300; // 分段数量
-    const dx = (endX - startX) / steps;
-    const dy = (endY - startY) / steps;
+    // 以箭头正中心值作为线段结束位置
+    const dx = ((rightX + leftX + endX) / 3 - startX) / steps;
+    const dy = ((rightY + leftY + endY) / 3 - startY) / steps;
 
     ctx.lineCap = 'round'; // 设置线条端点为圆形
     ctx.globalCompositeOperation = 'source-over';
@@ -527,26 +536,19 @@ class CanvasImgEditor {
     }
     // ctx.closePath()
 
-    // 绘制箭头尾部
-    const angle = Math.atan2(endY - startY, endX - startX);
-    const headLength = endWidth * 2;
 
     ctx.beginPath();
     // 终点
     ctx.moveTo(endX, endY);
     // 右侧点
-    ctx.lineTo(
-      endX - headLength * Math.cos(angle - Math.PI / 6),
-      endY - headLength * Math.sin(angle - Math.PI / 6)
-    );
+
+    ctx.lineTo(rightX, rightY);
     // 左侧点
-    ctx.lineTo(
-      endX - headLength * Math.cos(angle + Math.PI / 6),
-      endY - headLength * Math.sin(angle + Math.PI / 6)
-    );
+
+    ctx.lineTo(leftX, leftY);
     ctx.closePath();
     ctx.strokeStyle = color;
-    ctx.lineWidth = endWidth;
+    ctx.lineWidth = 1;
     ctx.stroke();
     ctx.fillStyle = color;
     ctx.fill();
@@ -889,8 +891,8 @@ class CanvasImgEditor {
       // console.log('text-add-same', same);
       // if (!same) {
       // this.textList.push(newText)
-      this.textareaNode.style.left = `${startX -1 }px`
-      this.textareaNode.style.top = `${startY - this.textFontSize +2}px`
+      this.textareaNode.style.left = `${startX - 1}px`
+      this.textareaNode.style.top = `${startY - this.textFontSize + 2}px`
       this.textareaNode.style.color = this.currentColor
       this.textareaNode.style.display = 'block';
       this.textareaNode.value = newText.text;
@@ -908,18 +910,18 @@ class CanvasImgEditor {
 
   // 区分文本二次编辑还是移动，采用mousedown 和mouseup 模拟click事件
   handleTextEditAgainOrMove(selectedText, isDoubleClick) {
-    const {ctx} = this
+    const { ctx } = this
     if (isDoubleClick) {
       // 双击状态是编辑文本
       const selectedTextObj = ctx.measureText(selectedText.text)
-      if(selectedTextObj) {
-        console.log('selectedTextObj',selectedTextObj);
+      if (selectedTextObj) {
+        console.log('selectedTextObj', selectedTextObj);
         this.textareaNode.style.width = `${selectedTextObj.width}px`
       }
       this.currentOperationInfo = selectedText
       this.currentOperationState = 'edit'
-      
-      this.textareaNode.style.left = `${selectedText.startX -1}px`
+
+      this.textareaNode.style.left = `${selectedText.startX - 1}px`
       this.textareaNode.style.top = `${selectedText.startY - this.currentOperationInfo.fontSize + 2}px`
       // this.textareaNode.style.top = `${selectedText.startY + 2}px`
       this.textareaNode.style.color = selectedText.color;
@@ -950,7 +952,7 @@ class CanvasImgEditor {
       const beforeText = this.currentOperationInfo.text
       this.currentOperationInfo.text = this.textareaNode.value
       this.textareaNode.style.display = 'none'
-      if(this.currentOperationInfo.colorBack) {
+      if (this.currentOperationInfo.colorBack) {
         this.currentOperationInfo.color = this.currentOperationInfo.colorBack
         this.currentOperationInfo.colorBack = null
       }
@@ -1016,7 +1018,7 @@ class CanvasImgEditor {
       //   this._lastClickTime = newClickTime;
     } else if (this.currentOperationState === 'edit') {
       this.exitTextEditStatus()
-    } else if (this.currentOperationState === 'add'){
+    } else if (this.currentOperationState === 'add') {
       this.inTextEdit = true
     } else if (this.isDrawing) {
       console.log('文本拖拽状态');
@@ -1034,15 +1036,15 @@ class CanvasImgEditor {
         this.textList.push(newItem)
       } else {
         // 历史栈中文本去重
-        const noChange = newItem.id === same.id 
+        const noChange = newItem.id === same.id
           && newItem.text === same.text
           && newItem.startX === same.startX
           && newItem.startY === same.startY
           && newItem.fontSize === same.fontSize
           && newItem.color === same.color
-          if(noChange) {
-            this.currentOperationInfo = null
-          }
+        if (noChange) {
+          this.currentOperationInfo = null
+        }
       }
     }
   }
@@ -1998,9 +2000,9 @@ class CanvasImgEditor {
   redrawCanvas() {
     this.clearCanvas()
     const uniqueShapeList = this.getUniqueShapeList()
-    if(this.currentOperationInfo && this.currentOperationInfo.id) {
+    if (this.currentOperationInfo && this.currentOperationInfo.id) {
       const index = uniqueShapeList.findIndex(item => item.id === this.currentOperationInfo.id)
-      if(index > -1) {
+      if (index > -1) {
         uniqueShapeList.splice(index, 1)
       }
       uniqueShapeList.push(this.currentOperationInfo)
