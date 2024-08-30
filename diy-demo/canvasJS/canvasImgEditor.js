@@ -174,14 +174,12 @@ class CanvasImgEditor {
       }
     }
     this.setCanvasRatio()
-    console.log('this.canvasParent', this.canvasParent);
   }
 
   loadImage(src) {
     if (src && this.canvasParent) {
       if (!this.canvasImg) {
         this.canvasImg = document.createElement('canvas');
-        console.log('11', this.canvasImg);
         this.canvasImg.width = this.canvasWidth;
         this.canvasImg.height = this.canvasHeight;
         this.canvasParent.appendChild(this.canvasImg);
@@ -201,6 +199,10 @@ class CanvasImgEditor {
       img.onload = () => {
         this.ctxImg.drawImage(img, 0, 0, this.canvasWidth, this.canvasHeight);
         this.imgNode = img
+      };
+      img.onerror = (e) => {
+        console.log('图片加载失败', e);
+        
       };
     }
   }
@@ -268,7 +270,6 @@ class CanvasImgEditor {
       this.handleCircleMouseDown(this.startX, this.startY)
     } else if (currentTool === 'mosaic') {
       this.currentOperationInfo = this.createMosaicInfo(this.startX, this.startY)
-      console.log('mosaic-add', this.currentOperationInfo);
     } else if (currentTool === 'scale') {
       this.handleScaleMouseDown(e)
     }
@@ -856,7 +857,7 @@ class CanvasImgEditor {
   }
 
   handleTextMouseDown(startX, startY, isDoubleClick = false) {
-    if (this.inTextEdit) {
+    if (this.inTextEdit || this.addNewText) {
       // this.exitTextEditStatus()
       // this.textMouseUploadNoSaveAction = true
       this.isDrawing = false
@@ -897,12 +898,15 @@ class CanvasImgEditor {
       this.textareaNode.style.color = this.currentColor
       this.textareaNode.style.display = 'block';
       this.textareaNode.value = newText.text;
-      this.inTextEdit = true
+      // this.inTextEdit = true
+      this.addNewText = true
       this.currentOperationState = 'add'
+      // this.beforeTextInfo = JSON.parse(JSON.stringify(newText)) // 记录下文本编辑前的状态，用于区分前后是否变化
       setTimeout(() => {
         this.textareaNode.focus()
       }, 300)
       this.currentOperationInfo = newText
+      
       // }
 
     }
@@ -915,18 +919,20 @@ class CanvasImgEditor {
     if (isDoubleClick) {
       // 双击状态是编辑文本
       const selectedTextObj = ctx.measureText(selectedText.text)
-      if (selectedTextObj) {
-        console.log('selectedTextObj', selectedTextObj);
+      if(selectedTextObj) {
         this.textareaNode.style.width = `${selectedTextObj.width}px`
       }
       this.currentOperationInfo = selectedText
       this.currentOperationState = 'edit'
-
-      this.textareaNode.style.left = `${selectedText.startX - 1}px`
-      // this.textareaNode.style.top = `${selectedText.startY - this.currentOperationInfo.fontSize + 2}px`
-      this.textareaNode.style.top = `${selectedText.startY + 2}px`
+      
+      this.textareaNode.style.left = `${selectedText.startX -1}px`
+      this.textareaNode.style.top = `${selectedText.startY - selectedText.fontSize + 2}px`
+      // this.textareaNode.style.top = `${selectedText.startY + 2}px`
       this.textareaNode.style.color = selectedText.color;
       this.textareaNode.style.display = 'block';
+      this.beforeTextInfo = JSON.parse(JSON.stringify(selectedText)) // 记录下文本编辑前的状态，用于区分前后是否变化
+      selectedText.colorBackup= selectedText.color
+      selectedText.color='rgba(0,0,0, 0)'
       this.inTextEdit = true
       this.textareaNode.value = selectedText.text;
       selectedText.colorBack = selectedText.color
@@ -939,23 +945,22 @@ class CanvasImgEditor {
       // 拖动文本
       this.currentOperationInfo = selectedText
       this.currentOperationState = 'move'
-      // this.inTextEdit = false
-      // this.textareaNode.style.display = 'none';
       this.modifyCursor('move')
     }
   }
 
   // 退出文本编辑状态
   exitTextEditStatus() {
-    if (this.currentTool === 'text' && this.inTextEdit === true) {
+    if (this.currentTool === 'text' && (this.inTextEdit || this.addNewText)) {
       console.log('退出文本编辑状态');
       this.inTextEdit = false
+      this.addNewText = false
       const beforeText = this.currentOperationInfo.text
       this.currentOperationInfo.text = this.textareaNode.value
       this.textareaNode.style.display = 'none'
-      if (this.currentOperationInfo.colorBack) {
-        this.currentOperationInfo.color = this.currentOperationInfo.colorBack
-        this.currentOperationInfo.colorBack = null
+      if(this.currentOperationInfo.colorBackup) {
+        this.currentOperationInfo.color = this.currentOperationInfo.colorBackup
+        this.currentOperationInfo.colorBackup = null
       }
       if (beforeText === this.currentOperationInfo.text && beforeText === '') {
         // 前后文本都是空，不计入历史栈
@@ -988,11 +993,9 @@ class CanvasImgEditor {
   handleTextMouseUp() {
     console.log('handleTextMouseUp');
     const newClickTime = new Date().getTime();
-    if (this.inTextEdit) {
+    if (this.inTextEdit || this.addNewText) {
       this.exitTextEditStatus()
       this.modifyCursor('auto')
-      // if(this.textMouseUploadNoSaveAction) {
-      //   this.textMouseUploadNoSaveAction = false
     } else if (this.currentOperationState === 'selected') {
       if (this._isDoubleClick(newClickTime)) {
         this.currentOperationState = 'edit'
@@ -1002,21 +1005,6 @@ class CanvasImgEditor {
         this.handleTextEditAgainOrMove(this.currentOperationInfo, false)
       }
       this._lastClickTime = newClickTime;
-      // do nothing
-      // // 进入编进状态
-      // this.inTextEdit = true
-      // this.textareaNode.style.block = 'true'
-      // console.log('双击了');
-      // if (currentTool === 'text') {
-      //   this.handleTextMouseDown(this.startX, this.startY, true)
-      // }
-      // this._lastClickTime = newClickTime;
-      // } else if (this._isDoubleClick(newClickTime)) {
-      //   console.log('双击了');
-      //   if (currentTool === 'text') {
-      //     this.handleTextMouseDown(this.startX, this.startY, true)
-      //   }
-      //   this._lastClickTime = newClickTime;
     } else if (this.currentOperationState === 'edit') {
       this.exitTextEditStatus()
     } else if (this.currentOperationState === 'add') {
@@ -1036,16 +1024,17 @@ class CanvasImgEditor {
       if (!same) {
         this.textList.push(newItem)
       } else {
+        const beforeTextInfo = this.beforeTextInfo || {}
         // 历史栈中文本去重
-        const noChange = newItem.id === same.id
-          && newItem.text === same.text
-          && newItem.startX === same.startX
-          && newItem.startY === same.startY
-          && newItem.fontSize === same.fontSize
-          && newItem.color === same.color
-        if (noChange) {
-          this.currentOperationInfo = null
-        }
+        const noChange = newItem.id === beforeTextInfo.id 
+          && newItem.text === beforeTextInfo.text
+          && newItem.startX === beforeTextInfo.startX
+          && newItem.startY === beforeTextInfo.startY
+          && newItem.fontSize === beforeTextInfo.fontSize
+          && newItem.color === beforeTextInfo.color
+          if(noChange || newItem.text === '') {
+            this.currentOperationInfo = null
+          }
       }
     }
   }
@@ -1082,10 +1071,10 @@ class CanvasImgEditor {
     let y = item.startY
 
     // 绘制边框
-    // let borderColor = isHide ? 'rgba(0, 0, 0, 0)' : '#333'
-    // ctx.strokeStyle = borderColor;
-    // ctx.lineWidth = 1;
-    // ctx.strokeRect(item.startX - 5, item.startY - 5, metrics.width + 10, metrics.height + 10);
+    let borderColor = isHide ? 'rgba(0, 0, 0, 0)' : 'rgb(118, 118, 118)'
+    ctx.strokeStyle = borderColor;
+    ctx.lineWidth = 1;
+    ctx.strokeRect(item.startX - 1, item.startY - 1, metrics.width + 2, metrics.height + 2);
     
     // 绘制文本
     let fillColor = isHide ? 'rgba(0, 0, 0, 0)' : item.color
@@ -1109,6 +1098,7 @@ class CanvasImgEditor {
     // 返回边框的宽高
     return { width: metrics.width, height: metrics.height };
   }
+  // 文本度量
   _getTextMetrics(item) {
     const {ctx} = this
     const lines = item.text.split('\n');
@@ -1117,6 +1107,7 @@ class CanvasImgEditor {
     const totalHeight = lineMetrics.length * item.fontSize * item.lineHeight;
     return { width: maxWidth, height: totalHeight, lines: lineMetrics.flat() };
   }
+  // 将输入的文本换行
   _splitTextIntoLines(text, item) {
     const {ctx} = this
     const words = text.split(' ');
@@ -1136,6 +1127,7 @@ class CanvasImgEditor {
     lines.push(currentLine);
     return lines;
   }
+  // 更新文本域宽高
   updateTextarea() {
     this.currentOperationInfo.text = this.textareaNode.value
     const {width, height} = this.drawText(this.currentOperationInfo, true)
@@ -1305,7 +1297,6 @@ class CanvasImgEditor {
       this.currentOperationInfo = newRect
       this.setCurrentShapeId(newRect.id)
     }
-    console.log('矩形操作按下时的数据', JSON.parse(JSON.stringify(this.currentOperationInfo)))
   }
 
   handleRectMouseMove(currentX, currentY) {
@@ -1527,9 +1518,6 @@ class CanvasImgEditor {
   // chooseEnabled 的作用是，点击时选中，浮动时不要选中，从而保证与交互设计一致
   inArc(iPointX, iPointY, iRadius, aPoint = [], chooseEnabled = true) {
     // 打印调试信息
-    console.log('inArc-x-y', iPointX, iPointY);
-    console.log('inArc-aPoint', aPoint);
-
     let bRet = false; // 初始化返回值为 false
 
     // 获取点集的长度
@@ -1538,14 +1526,10 @@ class CanvasImgEditor {
     // 遍历每个圆心点
     for (let i = 0; i < iLen; i++) {
       // 计算点到圆心的距离
-      console.log(`点${i}:(${aPoint[i][0]},${aPoint[i][1]})`);
-      console.log(`点${i}到圆心的距离:`, aPoint[i]);
-      console.log(`计算结果:`, iPointX - aPoint[i][0], iPointY - aPoint[i][1]);
       const iDistance = Math.sqrt(
         (iPointX - aPoint[i][0]) * (iPointX - aPoint[i][0]) +
         (iPointY - aPoint[i][1]) * (iPointY - aPoint[i][1])
       );
-      console.log('半径：', iRadius);
 
       // 判断距离是否小于等于半径
       if (iDistance < iRadius) {
@@ -1739,7 +1723,6 @@ class CanvasImgEditor {
   handleCircleMouseMove(currentX, currentY) {
     if (this.currentOperationInfo) {
       if (this.currentOperationState === 'resize') {
-        console.log('修改圆大小');
         const { indexChoosePoint } = this
         if ([4, 5, 6, 7].includes(indexChoosePoint)) {
           // 在四个边角，
@@ -1900,7 +1883,6 @@ class CanvasImgEditor {
     const rightBottomX = this.currentOperationInfo.startX + width
     const rightBottomY = this.currentOperationInfo.startY + height
     // 修改矩形四个角位置
-    console.log('this.currentOperationInfo----', JSON.parse(JSON.stringify(this.currentOperationInfo)));
     this.currentOperationInfo.pointList[0] = [this.currentOperationInfo.startX, this.currentOperationInfo.startY]// 左上角位置
     this.currentOperationInfo.pointList[1] = [rightBottomX, this.currentOperationInfo.startY]// 右上角位置
     this.currentOperationInfo.pointList[2] = [rightBottomX, rightBottomY]// 右下角位置
@@ -2228,7 +2210,6 @@ class CanvasImgEditor {
     }
     // Object.hasOwnProperty()
     Object.keys(cssObj).forEach(key => {
-      console.log('key', key, cssObj[key]);
       this.canvas.style[key] = cssObj[key]
       this.canvasImg.style[key] = cssObj[key]
     })
@@ -2244,7 +2225,6 @@ class CanvasImgEditor {
   }
 
   handleScaleMouseDown(e) {
-    console.log('handleScaleMouseDown', e);
     this.scaleOffsetXCopy = this.scaleOffsetX
     this.scaleOffsetYCopy = this.scaleOffsetY
     this.scaleMouseDownX = e.x
@@ -2284,7 +2264,6 @@ class CanvasImgEditor {
   //以鼠标为缩放中心，计算canvas缩放后需要位移的量
   getTranslateData(offsetX, offsetY, newScale) {
     const { scaleRadio, canvasWidth, canvasHeight } = this
-    console.log('getTranslateData-w-h', canvasWidth, canvasHeight);
     const newWidth = canvasWidth * newScale;
     const newHeight = canvasHeight * newScale;
     const diffWidth = canvasWidth * scaleRadio - newWidth;
@@ -2384,10 +2363,8 @@ class CanvasImgEditor {
           selectedId = arrow.id
         } else if (this.insideRect(arrow.endX - 2, arrow.endY - 2, 4, 4, currentX, currentY)) {
           this.modifyCursor('move')
-          console.log('箭头尾部');
           selectedId = arrow.id
         } else if (this.isPointOnThickLine(currentX, currentY, arrow.startX, arrow.startY, arrow.endX, arrow.endY, arrow.endWidth)) {
-          console.log('在箭头线段上')
           this.modifyCursor('move')
           selectedId = arrow.id
 

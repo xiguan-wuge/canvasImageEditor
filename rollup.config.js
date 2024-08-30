@@ -6,7 +6,8 @@ const terser = require('rollup-plugin-terser').terser;
 const cwd = __dirname;
 
 const baseConfig = {
-    input: join(cwd, 'src/index.js'),
+    // input: join(cwd, 'src/index.js'),
+    input: join(cwd, 'diy-demo/canvasJS/canvasImgEditor.js'),
     external: ['react', 'react-dom', 'jquery'],
     output: [
         {
