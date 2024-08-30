@@ -102,6 +102,7 @@ class CanvasImgEditor {
     // 箭头信息
     this.currentOperationState = 'add' // 当前操作状态，默认是新增
     this.currentOperationInfo = null // 当前操作的信息
+    this.beforeOperationInfo = null // 当前操作信息的初始备份
     this.currentShapeId = defaultConfig.currentShapeId // 当前激活的图像ID，设置
     this.arrowList = [] // 已绘制的箭头列表
 
@@ -456,6 +457,7 @@ class CanvasImgEditor {
       this.arrowList.push(newArrow)
       this.setCurrentShapeId(this.currentOperationInfo.id)
     }
+    this.beforeOperationInfo = JSON.parse(JSON.stringify(this.currentOperationInfo))
   }
   handleArrowMouseMove(currentX, currentY) {
     const { currentOperationState, currentOperationInfo } = this
@@ -633,18 +635,25 @@ class CanvasImgEditor {
   // 处理箭头MouseUP
   handleArrowMouseUp() {
     if (this.currentTool === 'arrow') {
+      const {beforeOperationInfo, currentOperationInfo} = this
+      const { startX, startY, endX, endY } = currentOperationInfo
       if (this.currentOperationInfo && this.currentOperationState === 'add') {
         // 判断信息是否符合
-        const { startX, startY, endX, endY } = this.currentOperationInfo
+       
         if (!(endX - startX > 0 || endY - startY > 0)) {
           this.arrowList.pop()
-          this.setCurrentShapeId()
           this.currentOperationInfo = null
         }
-        //  else {
-        //   this.setRectEndPointCursor()
-        // }
+      } else {
+        // 鼠标点击，但没有额外操作，不计入历史栈
+        if(beforeOperationInfo.startX === startX 
+            && beforeOperationInfo.startY === startY 
+            && endX === beforeOperationInfo.endX 
+            && endY === beforeOperationInfo.endY) {
+          this.currentOperationInfo = null
+        }
       }
+      this.setCurrentShapeId()
     }
   }
 
@@ -894,7 +903,8 @@ class CanvasImgEditor {
       // if (!same) {
       // this.textList.push(newText)
       this.textareaNode.style.left = `${startX - 1}px`
-      this.textareaNode.style.top = `${startY - this.textFontSize + 2}px`
+      // this.textareaNode.style.top = `${startY - this.textFontSize + 2}px`
+      this.textareaNode.style.top = `${startY + 2}px`
       this.textareaNode.style.color = this.currentColor
       this.textareaNode.style.display = 'block';
       this.textareaNode.value = newText.text;
@@ -926,8 +936,8 @@ class CanvasImgEditor {
       this.currentOperationState = 'edit'
       
       this.textareaNode.style.left = `${selectedText.startX -1}px`
-      this.textareaNode.style.top = `${selectedText.startY - selectedText.fontSize + 2}px`
-      // this.textareaNode.style.top = `${selectedText.startY + 2}px`
+      // this.textareaNode.style.top = `${selectedText.startY - selectedText.fontSize + 2}px`
+      this.textareaNode.style.top = `${selectedText.startY + 2}px`
       this.textareaNode.style.color = selectedText.color;
       this.textareaNode.style.display = 'block';
       this.beforeTextInfo = JSON.parse(JSON.stringify(selectedText)) // 记录下文本编辑前的状态，用于区分前后是否变化
