@@ -37,6 +37,7 @@
   <div id="toolbar">
     <button class="button" id="enlargeBtn">放大</button>
     <button class="button" id="reduceBtn">缩小</button>
+    <button class="button" id="scaleNormalBtn">缩放复位</button>
     <button class="button" id="drawArrowBtn">画箭头</button>
     <button class="button" id="mosaicBtn">马赛克</button>
     <button class="button" id="drawScribbleBtn">涂鸦</button>
@@ -92,6 +93,7 @@
       let currentTool = ''
       const enlargeBtn = document.getElementById('enlargeBtn');
       const reduceBtn = document.getElementById('reduceBtn');
+      const scaleNormalBtn = document.getElementById('scaleNormalBtn');
       const arrowButton = document.getElementById('drawArrowBtn');
       const mosaicButton = document.getElementById('mosaicBtn');
       const scribbleButton = document.getElementById('drawScribbleBtn');
@@ -121,6 +123,7 @@
       downloadBtn.addEventListener('click', download);
       enlargeBtn.addEventListener('click', enlarge);
       reduceBtn.addEventListener('click', reduce);
+      scaleNormalBtn.addEventListener('click', scaleNormal);
 
       colorNode.addEventListener('change', changeColor)
       changeColor()
@@ -208,6 +211,11 @@
       function reduce() {
         setTool('scale')
         canvasInstance.scale(false);
+      }
+      // 重置缩放
+      function scaleNormal() {
+        setTool('scale')
+        canvasInstance.restoreScale()
       }
       // 事件注册
       canvasInstance.registerCallback({
