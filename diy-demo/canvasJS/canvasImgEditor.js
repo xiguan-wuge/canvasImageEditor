@@ -905,6 +905,7 @@ class CanvasImgEditor {
       this.currentOperationState = 'add'
       this.currentOperationInfo = newText
       this.showTextareaNode()
+      this.isDrawing = false
     }
     console.log('text---position', startX, startY);
   }
@@ -960,7 +961,9 @@ class CanvasImgEditor {
   }
 
   handleTextMouseMove(currentX, currentY) {
-    console.log('handleTextMouseMove');
+    if(!this.isDrawing) {
+      return
+    }
     const { currentOperationInfo } = this
     if (this.currentOperationState === 'move' || this.currentOperationState === 'selected') {
       this.currentOperationState = 'move'
@@ -988,15 +991,16 @@ class CanvasImgEditor {
         this.currentOperationState = 'edit'
         this.handleTextEditAgainOrMove(this.currentOperationInfo, true)
       } else {
-        this.currentOperationState = 'move'
-        this.handleTextEditAgainOrMove(this.currentOperationInfo, false)
+        // 选中但未拖动
+        this.isDrawing = false
+        this.modifyCursor('auto')
       }
       this._lastClickTime = newClickTime;
     } else if (this.currentOperationState === 'edit') {
       this.exitTextEditStatus()
     } else if (this.currentOperationState === 'add') {
       this.inTextEdit = true
-    } else if (this.isDrawing) {
+    } else if (this.isDrawing || this.currentOperationState === 'move') {
       console.log('文本拖拽状态');
       this.isDrawing = false
       console.log('333333333333333');
