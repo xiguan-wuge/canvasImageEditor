@@ -339,7 +339,7 @@ class CanvasImgEditor {
         this.isDrawing = false;
         this.handleArrowMouseUp()
         this.handleScribbleSaveAction()
-        this.handleEraserSaveAction()
+        this.handleEraserMouseUp()
         this.handleRectMouseUp()
         this.handleCircleMouseUp(e)
         console.log('11111111111');
@@ -498,6 +498,31 @@ class CanvasImgEditor {
       this.resizeGradientArrow(this.currentOperationInfo)
     }
   }
+
+  // 处理箭头MouseUP
+  handleArrowMouseUp() {
+    if (this.currentTool === 'arrow') {
+      const { beforeOperationInfo, currentOperationInfo } = this
+      const { startX, startY, endX, endY } = currentOperationInfo
+      if (this.currentOperationInfo && this.currentOperationState === 'add') {
+        // 判断信息是否符合
+        if (!(endX - startX > 0 || endY - startY > 0)) {
+          this.arrowList.pop()
+          this.currentOperationInfo = null
+          this.setCurrentShapeId()
+        }
+      }
+      // 鼠标点击，但没有额外操作，不计入历史栈
+      if (currentOperationInfo
+        && beforeOperationInfo.startX === startX
+        && beforeOperationInfo.startY === startY
+        && endX === beforeOperationInfo.endX
+        && endY === beforeOperationInfo.endY) {
+        this.currentOperationInfo = null
+      }
+      
+    }
+  }
   resizeGradientArrow(item) {
     this.redrawCanvas()
   }
@@ -632,30 +657,7 @@ class CanvasImgEditor {
     }
   }
 
-  // 处理箭头MouseUP
-  handleArrowMouseUp() {
-    if (this.currentTool === 'arrow') {
-      const { beforeOperationInfo, currentOperationInfo } = this
-      const { startX, startY, endX, endY } = currentOperationInfo
-      if (this.currentOperationInfo && this.currentOperationState === 'add') {
-        // 判断信息是否符合
 
-        if (!(endX - startX > 0 || endY - startY > 0)) {
-          this.arrowList.pop()
-          this.currentOperationInfo = null
-        }
-      } else {
-        // 鼠标点击，但没有额外操作，不计入历史栈
-        if (beforeOperationInfo.startX === startX
-          && beforeOperationInfo.startY === startY
-          && endX === beforeOperationInfo.endX
-          && endY === beforeOperationInfo.endY) {
-          this.currentOperationInfo = null
-        }
-      }
-      this.setCurrentShapeId()
-    }
-  }
 
   // 重绘涂鸦
   redrawScribbleList(item) {
@@ -855,7 +857,7 @@ class CanvasImgEditor {
     }
   }
 
-  handleEraserSaveAction() {
+  handleEraserMouseUp() {
     if (this.currentTool === "eraser") {
       if (this.currentOperationInfo) {
         this.eraserList.push(JSON.parse(JSON.stringify(this.currentOperationInfo)))
@@ -870,6 +872,7 @@ class CanvasImgEditor {
       // this.exitTextEditStatus()
       // this.textMouseUploadNoSaveAction = true
       this.isDrawing = false
+      this.onListenEnlargeState = 'add'
       return
     }
     if (!this.textareaNode) {
@@ -891,8 +894,8 @@ class CanvasImgEditor {
         type: 'text',
         text: '',
         color: this.currentColor,
-        lineWidth: this.textFontWeight-0,
-        fontSize: this.textFontSize-0,
+        lineWidth: this.textFontWeight - 0,
+        fontSize: this.textFontSize - 0,
         lineHeight: 1,
         maxWidth: this.canvasWidth,
         startX,
@@ -902,10 +905,6 @@ class CanvasImgEditor {
       this.currentOperationState = 'add'
       this.currentOperationInfo = newText
       this.showTextareaNode()
-      // this.beforeTextInfo = JSON.parse(JSON.stringify(newText)) // 记录下文本编辑前的状态，用于区分前后是否变化
-      setTimeout(() => {
-        this.textareaNode.focus()
-      }, 300)
     }
     console.log('text---position', startX, startY);
   }
@@ -915,10 +914,6 @@ class CanvasImgEditor {
     const { ctx } = this
     if (isDoubleClick) {
       // 双击状态是编辑文本
-      // const selectedTextObj = ctx.measureText(selectedText.text)
-      // if(selectedTextObj) {
-      //   this.textareaNode.style.width = `${selectedTextObj.width}px`
-      // }
       this.currentOperationInfo = selectedText
       this.currentOperationState = 'edit'
       this.showTextareaNode()
@@ -949,7 +944,7 @@ class CanvasImgEditor {
       this.addNewText = false
       const beforeText = this.currentOperationInfo.text
       this.currentOperationInfo.text = this.textareaNode.value
-      this.textareaNode.style.display = 'none'
+      this.hideTextareaNode()
       if (this.currentOperationInfo.colorBackup) {
         this.currentOperationInfo.color = this.currentOperationInfo.colorBackup
         this.currentOperationInfo.colorBackup = null
@@ -1013,7 +1008,7 @@ class CanvasImgEditor {
     if (this.currentTool === 'text' && !this.inTextEdit) {
       const newItem = JSON.parse(JSON.stringify(this.currentOperationInfo))
       const same = this.textList.find(item => item.id === newItem.id)
-      if (!same) {
+      if (!same && newItem.text) {
         this.textList.push(newItem)
       } else {
         const beforeTextInfo = this.beforeTextInfo || {}
@@ -1063,10 +1058,10 @@ class CanvasImgEditor {
     let y = item.startY
 
     // 绘制边框
-    let borderColor = isHide ? 'rgba(0, 0, 0, 0)' : 'rgb(118, 118, 118)'
-    ctx.strokeStyle = borderColor;
-    ctx.lineWidth = 1;
-    ctx.strokeRect(item.startX - 1, item.startY - 1, metrics.width + 2, metrics.height + 2);
+    // let borderColor = isHide ? 'rgba(0, 0, 0, 0)' : 'rgb(118, 118, 118)'
+    // ctx.strokeStyle = borderColor;
+    // ctx.lineWidth = 1;
+    // ctx.strokeRect(item.startX - 1, item.startY - 1, metrics.width + 2, metrics.height + 2);
 
     // 绘制文本
     let fillColor = isHide ? 'rgba(0, 0, 0, 0)' : item.color
@@ -1084,14 +1079,8 @@ class CanvasImgEditor {
     const { ctx } = this
     const lines = item.text.split('\n');
     const lineMetrics = lines.map(line => this._splitTextIntoLines(line, item));
-    console.log('lineMetrics', lineMetrics);
-
     let allLineWidth = lineMetrics.map(line => ctx.measureText(line).width)
-    console.log('allLineWidth', allLineWidth);
-
     const maxWidth = Math.max(...allLineWidth)
-    console.log('maxWidth', maxWidth);
-
     const totalHeight = lineMetrics.length * item.fontSize * item.lineHeight;
     return { width: maxWidth, height: totalHeight, lines: lineMetrics.flat() };
   }
@@ -1119,7 +1108,6 @@ class CanvasImgEditor {
   updateTextarea() {
     this.currentOperationInfo.text = this.textareaNode.value
     let { width, height } = this.drawText(this.currentOperationInfo, true)
-    console.log('width, height', width, height);
     const ratio = this.getCanvasRatio()
     this.currentOperationInfo.width = width
     this.currentOperationInfo.height = height
@@ -1128,7 +1116,7 @@ class CanvasImgEditor {
   }
   // 设置字体大小
   setTextFontSize(fontSize) {
-    this.textFontSize = fontSize-0
+    this.textFontSize = fontSize - 0
   }
 
   // 设置字体宽度
@@ -1162,12 +1150,11 @@ class CanvasImgEditor {
       'text-align': 'left',
       'line-height': 1,
       color: 'rgb(255, 52, 64)',
-      'font-size': `${Math.ceil((this.textFontSize-0) / ratio)}px`,
+      'font-size': `${Math.ceil((this.textFontSize - 0) / ratio)}px`,
       'font-family': 'serif',
       'font-weight': 'normal',
       'transform-origin': 'left top',
     }
-    console.log('textStyleObj', textStyleObj);
     let styleStr = Object.keys(textStyleObj).map(item => {
       return `${item}:${textStyleObj[item]};`
     }).join('')
@@ -1178,11 +1165,9 @@ class CanvasImgEditor {
 
     // 处理 Enter 键，完成文本输入
     this.textareaNode.addEventListener('keydown', (e) => {
-      console.log('keydown');
       this.updateTextarea()
       if (e.key === 'Enter') {
-        console.log('keyEnter');
-        this.textareaNode.style.height = `${this.currentOperationInfo.height + this.currentOperationInfo.fontSize-0}px`
+        this.textareaNode.style.height = `${this.currentOperationInfo.height + this.currentOperationInfo.fontSize - 0}px`
       }
       console.log('this.textareaNode.value', this.textareaNode.value);
     });
@@ -1199,6 +1184,9 @@ class CanvasImgEditor {
     this.textareaNode.style.height = `${Math.ceil(height / ratio)}px`
     this.textareaNode.style.display = 'block';
     this.textareaNode.value = text;
+    setTimeout(() => {
+      this.textareaNode.focus()
+    }, 30)
   }
 
   hideTextareaNode() {
@@ -1301,6 +1289,7 @@ class CanvasImgEditor {
       this.currentOperationInfo = newRect
       this.setCurrentShapeId(newRect.id)
     }
+    this.beforeOperationInfo = JSON.parse(JSON.stringify(this.currentOperationInfo))
   }
 
   handleRectMouseMove(currentX, currentY) {
@@ -1325,14 +1314,26 @@ class CanvasImgEditor {
 
   }
   handleRectMouseUp() {
-    if (this.currentTool === "rect" && this.rectOperationState === 'add') {
-      // 判断矩形是否符合
-      if (this.currentOperationInfo.width === 0 || this.currentOperationInfo.height === 0) {
-        this.rectList.pop()
-        this.setCurrentShapeId()
-        this.currentOperationInfo = null
-      } else {
-        this.setRectEndPointCursor()
+    if (this.currentTool === "rect") {
+      if (this.rectOperationState === 'add') {
+        // 判断新增矩形是否符合
+        if (this.currentOperationInfo.width === 0 || this.currentOperationInfo.height === 0) {
+          this.rectList.pop()
+          this.setCurrentShapeId()
+          this.currentOperationInfo = null
+        } else {
+          this.setRectEndPointCursor()
+        }
+      }
+      // 重复点击则移除
+      if (this.beforeOperationInfo && this.currentOperationInfo) {
+        if (this.beforeOperationInfo.startX === this.currentOperationInfo.startX
+          && this.beforeOperationInfo.startY === this.currentOperationInfo.startY
+          && this.beforeOperationInfo.width === this.currentOperationInfo.width
+          && this.beforeOperationInfo.height === this.currentOperationInfo.height
+        ) {
+          this.currentOperationInfo = null
+        }
       }
     }
   }
@@ -1720,6 +1721,7 @@ class CanvasImgEditor {
       this.currentOperationState = 'add'
       this.setCurrentShapeId(this.currentOperationInfo.id)
     }
+    this.beforeOperationInfo = JSON.parse(JSON.stringify(this.currentOperationInfo))
 
   }
 
@@ -1777,12 +1779,23 @@ class CanvasImgEditor {
       } else {
         this.setCircleEndPointCursor() // 设置鼠标样式
       }
+      // 若是重复点击，也一样不历史栈
+      if (this.beforeOperationInfo && this.currentOperationInfo) {
+        const noChange = this.currentOperationInfo.startX === this.beforeOperationInfo.startX
+          && this.currentOperationInfo.startY === this.beforeOperationInfo.startY
+          && this.currentOperationInfo.radiusX === this.beforeOperationInfo.radiusX
+          && this.currentOperationInfo.radiusY === this.beforeOperationInfo.radiusY
+        if (noChange) {
+          this.currentOperationInfo = null
+        }
+      }
     }
   }
 
   drawCircle(circle) {
     const { ctx } = this
     ctx.beginPath();
+    ctx.globalCompositeOperation = 'source-over';
     ctx.strokeStyle = circle.color
     ctx.lineWidth = circle.lineWidth
     ctx.ellipse(circle.startX, circle.startY, circle.radiusX, circle.radiusY, 0, 0, 2 * Math.PI);
@@ -1912,8 +1925,6 @@ class CanvasImgEditor {
     console.log('saveaction-this.actions', this.actions);
     // 打印当前操作类型的list
     console.log(`saveAction-this.${this.typeAndShapeMap[this.currentTool]}`, this[this.typeAndShapeMap[this.currentTool]]);
-
-
   }
 
   undo() {
@@ -1948,6 +1959,8 @@ class CanvasImgEditor {
           list.splice(index, 1)
         }
       }
+      // 避免重复入栈，销毁当前操作信息
+      this.currentOperationInfo = null
       this.redrawCanvas()
       this.onListenUndoState()
       this.onListenRedoState()
@@ -2068,7 +2081,7 @@ class CanvasImgEditor {
       if (index > -1) {
         uniqueShapeList.splice(index, 1)
       }
-      uniqueShapeList.push(this.currentOperationInfo)
+      uniqueShapeList.push(this.currentOperationInfo) // 
     }
     let funcName = ''
     let type = ''
