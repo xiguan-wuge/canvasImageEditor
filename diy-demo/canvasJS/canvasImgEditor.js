@@ -398,7 +398,8 @@ class CanvasImgEditor {
         if (this.insideRect(startX - (endPointWidth), startY - 2, 4, 4, this.startX, this.startY)) {
           this.changeCurrentShapeOnMouseDown(arrow)
           this.resizeGradientArrow()
-          this.drawArrowEndPoint(arrow)
+          this.setCurrentShapeId(arrow.id)
+          this.redrawCanvas()
 
           this.currentOperationState = 'start'
           this.modifyCursor('move')
@@ -408,7 +409,8 @@ class CanvasImgEditor {
         } else if (this.insideRect(endX - halfEndPointWidth, endY - halfEndPointWidth, endPointWidth, endPointWidth, this.startX, this.startY)) {
           this.changeCurrentShapeOnMouseDown(arrow)
           this.resizeGradientArrow()
-          this.drawArrowEndPoint(arrow)
+          this.setCurrentShapeId(arrow.id)
+          this.redrawCanvas()
 
           this.currentOperationState = 'end'
           this.modifyCursor('move')
@@ -418,7 +420,8 @@ class CanvasImgEditor {
         } else if (this.isPointOnThickLine(this.startX, this.startY, startX, startY, endX, endY, endWidth)) {
           this.changeCurrentShapeOnMouseDown(arrow)
           this.resizeGradientArrow()
-          this.drawArrowEndPoint(arrow)
+          this.setCurrentShapeId(arrow.id)
+          this.redrawCanvas()
           this.currentOperationState = 'move'
           this.currentOperationInfo = arrow
           this.modifyCursor('move')
@@ -539,7 +542,7 @@ class CanvasImgEditor {
     const leftX = endX - headLength * Math.cos(angle + Math.PI / 6)
     const leftY = endY - headLength * Math.sin(angle + Math.PI / 6)
 
-    const steps = 300; // 分段数量
+    const steps = 600; // 分段数量
     // 以箭头正中心值作为线段结束位置
     const dx = ((rightX + leftX + endX) / 3 - startX) / steps;
     const dy = ((rightY + leftY + endY) / 3 - startY) / steps;
@@ -1251,7 +1254,8 @@ class CanvasImgEditor {
           this.currentOperationInfo = rect
           this.setRectEndPointCursor(this.indexChoosePoint)
           this.changeCurrentShapeOnMouseDown(rect)
-          this.drawRectEndPoint(rect)
+          this.setCurrentShapeId(rect.id)
+          this.redrawCanvas()
           // this.modifyCursor('e-resize')
           selected = true
           break;
@@ -1263,7 +1267,8 @@ class CanvasImgEditor {
           this.currentOperationInfo = rect
           this.modifyCursor('move')
           this.changeCurrentShapeOnMouseDown(rect)
-          this.drawRectEndPoint(rect)
+          this.setCurrentShapeId(rect.id)
+          this.redrawCanvas()
           break
         }
       }
@@ -1437,7 +1442,7 @@ class CanvasImgEditor {
   drawRectEndPoint(rect) {
     const { ctx } = this
     const { endPointWidth, endPointColor } = rect
-    rect?.endPointList.forEach(point => {
+    rect?.endPointList.forEach((point) => {
       ctx.beginPath();
       ctx.fillRect(point[0], point[1], endPointWidth, endPointWidth)
       ctx.fillStyle = endPointColor;
@@ -1689,7 +1694,8 @@ class CanvasImgEditor {
           this.currentOperationInfo = circle
           selected = true
           this.changeCurrentShapeOnMouseDown(circle)
-          this.drawCirclePoint(circle)
+          this.setCurrentShapeId(circle.id)
+          this.redrawCanvas()
           this.setCircleEndPointCursor() // 设置鼠标样式
           break
 
@@ -1701,7 +1707,8 @@ class CanvasImgEditor {
           this.currentOperationState = 'move'
           this.modifyCursor('move')
           this.changeCurrentShapeOnMouseDown(circle)
-          this.drawCirclePoint(circle)
+          this.setCurrentShapeId(circle.id)
+          this.redrawCanvas()
           break;
         }
       }
