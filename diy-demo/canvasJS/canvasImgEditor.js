@@ -63,9 +63,9 @@ class CanvasImgEditor {
     this.isDrawing = false;
     this.startX = 0
     this.startY = 0;
-    this.currentTool = 'text'; // 默认工具为画箭头
+    this.currentTool = options?.currentTool || 'arrow'; // 默认工具为画箭头
     // 是否允许在编辑过程中自动切换操作类型（通过鼠标点击圆、矩形、箭头、之间切换类型）
-    this.changeToolTypeAuto = options.changeToolTypeAuto !== undefined ? options.changeToolTypeAuto : defaultConfig.changeToolTypeAuto
+    this.changeToolTypeAuto = options?.changeToolTypeAuto !== undefined ? options?.changeToolTypeAuto : defaultConfig.changeToolTypeAuto
     this.hoverActiveShapeId = defaultConfig.hoverActiveShapeId // 非绘图状态下，鼠标移动时hover的图形ID
     this.hoverActiveShapeType = defaultConfig.hoverActiveShapeType // 非绘图状态下，鼠标移动时hover的图形类型
     this.actions = []; // 用于存储操作的历史记录
@@ -136,9 +136,9 @@ class CanvasImgEditor {
     this.scaleOriginX = 0 // 平移的X偏移量
     this.scaleOriginY = 0 // 平移的Y偏移量
     this.scaleRadio = 1 // 缩放比例
-    this.scaleChangeValue = 0.1 // 缩放时递增、减的比例
-    this.scaleRadioMax = 2 // 最大缩放比例
-    this.scaleRadioMin = 0.2 // 最小缩放比例
+    this.scaleChangeValue = options?.scaleChangeValue || 0.1 // 缩放时递增、减的比例
+    this.scaleRadioMax = options?.scaleRadioMax || 2 // 最大缩放比例
+    this.scaleRadioMin = options?.scaleRadioMin|| 0.2 // 最小缩放比例
     this.scaleOffsetX = 0
     this.scaleOffsetY = 0
     this.enlargeState = true
@@ -1154,6 +1154,7 @@ class CanvasImgEditor {
       'font-family': 'serif',
       'font-weight': 'normal',
       'transform-origin': 'left top',
+      border: '1px solid light-dark(rgb(118, 118, 118), rgb(133, 133, 133));'
     }
     let styleStr = Object.keys(textStyleObj).map(item => {
       return `${item}:${textStyleObj[item]};`
@@ -1200,15 +1201,6 @@ class CanvasImgEditor {
     const { textList, ctx } = this
     for (let i = textList.length - 1; i >= 0; i--) {
       const textObject = textList[i];
-      // const textWidth = ctx.measureText(textObject.text).width;
-      // const textHeight = textObject.fontSize; // 大致的高度估计
-
-      // if (
-      //   x >= textObject.startX && x <= textObject.startX + textWidth &&
-      //   y <= textObject.startY && y >= textObject.startY - textHeight
-      // ) {
-      //   return textObject;
-      // }
       const { startX, startY, width, height } = textObject
       if (this.insideRect(startX, startY, width, height, x, y)) {
         return textObject
