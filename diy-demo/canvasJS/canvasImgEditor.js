@@ -335,14 +335,12 @@ class CanvasImgEditor {
       if (currentTool === 'text') {
         this.handleTextMouseUp()
       } else if (this.isDrawing) {
-        console.log('非文本编辑');
         this.isDrawing = false;
         this.handleArrowMouseUp()
         this.handleScribbleSaveAction()
         this.handleEraserMouseUp()
         this.handleRectMouseUp()
         this.handleCircleMouseUp(e)
-        console.log('11111111111');
         this.saveAction(); // 保存当前操作xx
       }
       this.checkActiveShape()
@@ -872,10 +870,9 @@ class CanvasImgEditor {
 
   handleTextMouseDown(startX, startY, isDoubleClick = false) {
     if (this.inTextEdit || this.addNewText) {
-      // this.exitTextEditStatus()
-      // this.textMouseUploadNoSaveAction = true
       this.isDrawing = false
       this.onListenEnlargeState = 'add'
+      this.inTextEdit = true
       return
     }
     if (!this.textareaNode) {
@@ -903,63 +900,14 @@ class CanvasImgEditor {
         maxWidth: this.canvasWidth,
         startX,
         startY,
+        width: 2,
+        height: this.textFontSize -0
       }
       this.addNewText = true
       this.currentOperationState = 'add'
       this.currentOperationInfo = newText
       this.showTextareaNode()
       this.isDrawing = false
-    }
-    console.log('text---position', startX, startY);
-  }
-
-  // 区分文本二次编辑还是移动，采用mousedown 和mouseup 模拟click事件
-  handleTextEditAgainOrMove(selectedText, isDoubleClick) {
-    const { ctx } = this
-    if (isDoubleClick) {
-      // 双击状态是编辑文本
-      this.currentOperationInfo = selectedText
-      this.currentOperationState = 'edit'
-      this.showTextareaNode()
-
-      this.beforeTextInfo = JSON.parse(JSON.stringify(selectedText)) // 记录下文本编辑前的状态，用于区分前后是否变化
-      selectedText.colorBackup = selectedText.color
-      selectedText.color = 'rgba(0,0,0, 0)'
-      this.inTextEdit = true
-      selectedText.colorBack = selectedText.color
-      selectedText.color = 'rgba(0, 0, 0, 0)'
-      this.redrawCanvas()
-      setTimeout(() => {
-        this.textareaNode.focus()
-      }, 300)
-    } else {
-      // 拖动文本
-      this.currentOperationInfo = selectedText
-      this.currentOperationState = 'move'
-      this.modifyCursor('move')
-    }
-  }
-
-  // 退出文本编辑状态
-  exitTextEditStatus() {
-    if (this.currentTool === 'text' && (this.inTextEdit)) {
-      console.log('退出文本编辑状态');
-      this.inTextEdit = false
-      this.addNewText = false
-      const beforeText = this.currentOperationInfo.text
-      this.currentOperationInfo.text = this.textareaNode.value
-      this.hideTextareaNode()
-      if (this.currentOperationInfo.colorBackup) {
-        this.currentOperationInfo.color = this.currentOperationInfo.colorBackup
-        this.currentOperationInfo.colorBackup = null
-      }
-      if (beforeText === this.currentOperationInfo.text && beforeText === '') {
-        // 前后文本都是空，不计入历史栈
-        return
-      }
-      this.handleTextSaveAction()
-      this.saveAction()
-      this.redrawCanvas()
     }
   }
 
@@ -973,13 +921,13 @@ class CanvasImgEditor {
       if (this.canvasCursor !== 'move') {
         this.modifyCursor('move')
       }
-      const dx = currentX - currentOperationInfo.startX
-      const dy = currentY - currentOperationInfo.startY
+      const dx = currentX - this.startX
+      const dy = currentY - this.startY
       currentOperationInfo.startX += dx
       currentOperationInfo.startY += dy
       this.redrawCanvas()
-      currentOperationInfo.startX = currentX
-      currentOperationInfo.startY = currentY
+      this.startX = currentX
+      this.startY = currentY
     }
   }
 
@@ -1004,9 +952,7 @@ class CanvasImgEditor {
     } else if (this.currentOperationState === 'add') {
       this.inTextEdit = true
     } else if (this.isDrawing || this.currentOperationState === 'move') {
-      console.log('文本拖拽状态');
       this.isDrawing = false
-      console.log('333333333333333');
       this.saveAction()
     }
   }
@@ -1030,6 +976,53 @@ class CanvasImgEditor {
           this.currentOperationInfo = null
         }
       }
+    }
+  }
+
+  // 区分文本二次编辑还是移动，采用mousedown 和mouseup 模拟click事件
+  handleTextEditAgainOrMove(selectedText, isDoubleClick) {
+    const { ctx } = this
+    if (isDoubleClick) {
+      // 双击状态是编辑文本
+      this.currentOperationInfo = selectedText
+      this.currentOperationState = 'edit'
+      this.showTextareaNode()
+
+      this.beforeTextInfo = JSON.parse(JSON.stringify(selectedText)) // 记录下文本编辑前的状态，用于区分前后是否变化
+      selectedText.colorBackup = selectedText.color
+      selectedText.color = 'rgba(0,0,0, 0)'
+      this.inTextEdit = true
+      this.redrawCanvas()
+      setTimeout(() => {
+        this.textareaNode.focus()
+      }, 300)
+    } else {
+      // 拖动文本
+      this.currentOperationInfo = selectedText
+      this.currentOperationState = 'move'
+      this.modifyCursor('move')
+    }
+  }
+
+  // 退出文本编辑状态
+  exitTextEditStatus() {
+    if (this.currentTool === 'text' && (this.inTextEdit)) {
+      this.inTextEdit = false
+      this.addNewText = false
+      const beforeText = this.currentOperationInfo.text
+      this.currentOperationInfo.text = this.textareaNode.value
+      this.hideTextareaNode()
+      if (this.currentOperationInfo.colorBackup) {
+        this.currentOperationInfo.color = this.currentOperationInfo.colorBackup
+        this.currentOperationInfo.colorBackup = null
+      }
+      if (beforeText === this.currentOperationInfo.text && beforeText === '') {
+        // 前后文本都是空，不计入历史栈
+        return
+      }
+      this.handleTextSaveAction()
+      this.saveAction()
+      this.redrawCanvas()
     }
   }
 
@@ -1171,12 +1164,11 @@ class CanvasImgEditor {
     this.textareaNode = textarea;
 
     // 处理 Enter 键，完成文本输入
-    this.textareaNode.addEventListener('keydown', (e) => {
+    this.textareaNode.addEventListener('input', (e) => {
       this.updateTextarea()
       if (e.key === 'Enter') {
         this.textareaNode.style.height = `${this.currentOperationInfo.height + this.currentOperationInfo.fontSize - 0}px`
       }
-      console.log('this.textareaNode.value', this.textareaNode.value);
     });
   }
   showTextareaNode() {
