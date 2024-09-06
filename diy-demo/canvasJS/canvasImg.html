@@ -89,6 +89,7 @@
       scaleRadioMin: 0.2, // 缩放最小比例
       scaleChangeValue: 0.1, // 缩放过渡（递增、递减）时的比例
       changeToolTypeAuto: true, // 是否允许自动切换当前操作类型，在箭头、文本、矩形、圆中切换，默认true, 需结合监听 toolTypeChange 事件，获取修改后的type, 更新操作栏
+      supportKeyboardUndo: true, // 是否支持键盘快捷键撤销绘制，默认false，建议仅在开发阶段使用，以免页面视图中误撤销
     })
     document.addEventListener('DOMContentLoaded', () => {
       // 工具按钮设置

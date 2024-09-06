@@ -77,7 +77,7 @@ class CanvasImgEditor {
     this.textElements = []; // 用于存储文本元素及其位置信息
     this.ellipses = []; // 存储所有圆/椭圆信息
     this.currentWidth = 2
-    this.currentColor = 'red'
+    this.currentColor = '#FF0000'
     this.canvasCursor = 'default' // 鼠标样式
     this.endPointRadius = 6 // 默认端点半径
     this.endPointFillColor = "#FFFFFF";        //端点内部填充颜色
@@ -379,7 +379,6 @@ class CanvasImgEditor {
     document.addEventListener('keydown', (e) => {
       
       if ((e.ctrlKey || e.metaKey) && (e.key === 'z' || e.key === 'Z')) {
-        console.log('e', e);
         console.log('键盘撤销触发');
         this.undo()
       }
@@ -515,7 +514,7 @@ class CanvasImgEditor {
       const { startX, startY, endX, endY } = currentOperationInfo
       if (this.currentOperationInfo && this.currentOperationState === 'add') {
         // 判断信息是否符合
-        if (!(endX - startX > 0 || endY - startY > 0)) {
+        if (!(Math.abs(endX - startX) > 0 || Math.abs(endY - startY) > 0)) {
           this.arrowList.pop()
           this.currentOperationInfo = null
           this.setCurrentShapeId()
@@ -548,7 +547,8 @@ class CanvasImgEditor {
     const leftX = endX - headLength * Math.cos(angle + Math.PI / 6)
     const leftY = endY - headLength * Math.sin(angle + Math.PI / 6)
 
-    const steps = 300; // 分段数量
+    // const steps = 300; // 分段数量
+    const steps = parseInt(Math.abs(endX - startX), 10); // 分段数量
     // 以箭头正中心值作为线段结束位置
     const dx = ((rightX + leftX + endX) / 3 - startX) / steps;
     const dy = ((rightY + leftY + endY) / 3 - startY) / steps;
@@ -1174,9 +1174,11 @@ class CanvasImgEditor {
 
     // 处理 Enter 键，完成文本输入
     this.textareaNode.addEventListener('input', (e) => {
-      this.updateTextarea()
-      if (e.key === 'Enter') {
-        this.textareaNode.style.height = `${this.currentOperationInfo.height + this.currentOperationInfo.fontSize - 0}px`
+      if(this.textareaNode?.style.display === 'block') {
+        this.updateTextarea()
+        if (e.key === 'Enter') {
+          this.textareaNode.style.height = `${this.currentOperationInfo.height + this.currentOperationInfo.fontSize - 0}px`
+        }
       }
     });
   }
