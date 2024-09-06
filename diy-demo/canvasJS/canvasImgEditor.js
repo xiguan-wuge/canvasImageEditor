@@ -13,8 +13,8 @@ const cursorTypeMap = {
   'sw-resize': 'sw-resize',
   's-resize': 's-resize',
   'w-resize': 'w-resize',
-  'col-resize': 'col-resize', // 基于纵轴左右调整
-  'row-resize': 'row-resize', // 基于纵轴西北-东南调整
+  'w-resize': 'w-resize', // 基于纵轴左右调整
+  's-resize': 's-resize', // 基于纵轴上下调整
   'nesw-resize': 'nesw-resize', // 基于纵轴东北-西南调整
   'nwse-resize': 'nwse-resize', // 基于纵轴西北-东南调整
 }
@@ -42,6 +42,7 @@ const defaultConfig = {
   changeToolTypeAuto: true, // 是否允许在编辑过程中自动切换操作类型（通过鼠标点击圆、矩形、箭头、之间切换类型）
   hoverActiveShapeId: -1, // 非绘图状态下，鼠标移动时hover的图形ID
   hoverActiveShapeType: '', // 非绘图状态下，鼠标移动时hover的图形类型
+  supportKeyboardUndo: false // 是否支持键盘按键撤销
 }
 // 函数判断
 const isFunction = (val) => {
@@ -88,6 +89,8 @@ class CanvasImgEditor {
     this.imgNode = null
     this.endPointWidth = 4 // 默认端点宽度
     this.endPointColor = '#fff' // 默认端点填充颜色
+
+    this.supportKeyboardUndo = options.supportKeyboardUndo || defaultConfig.supportKeyboardUndo // 是否支持键盘按键撤销
 
     this.typeAndShapeMap = {
       'arrow': 'arrowList',
@@ -138,7 +141,7 @@ class CanvasImgEditor {
     this.scaleRadio = 1 // 缩放比例
     this.scaleChangeValue = options?.scaleChangeValue || 0.1 // 缩放时递增、减的比例
     this.scaleRadioMax = options?.scaleRadioMax || 2 // 最大缩放比例
-    this.scaleRadioMin = options?.scaleRadioMin|| 0.2 // 最小缩放比例
+    this.scaleRadioMin = options?.scaleRadioMin || 0.2 // 最小缩放比例
     this.scaleOffsetX = 0
     this.scaleOffsetY = 0
     this.enlargeState = true
@@ -358,10 +361,13 @@ class CanvasImgEditor {
         this.saveAction(); // 保存当前操作
       }
     });
-    canvas.addEventListener('wheel', (e) => {
-      isFunction(e.preventDefault) && e.preventDefault()
-      this.handleMouseWheel(e)
-    })
+    if(this.supportKeyboardUndo) {
+      // 是否支持键盘按键撤销
+      canvas.addEventListener('wheel', (e) => {
+        isFunction(e.preventDefault) && e.preventDefault()
+        this.handleMouseWheel(e)
+      })
+    }
     canvas.addEventListener('drag', (e) => {
       e.preventDefault();
       return false;
@@ -371,7 +377,9 @@ class CanvasImgEditor {
       return false;
     })
     document.addEventListener('keydown', (e) => {
+      
       if ((e.ctrlKey || e.metaKey) && (e.key === 'z' || e.key === 'Z')) {
+        console.log('e', e);
         console.log('键盘撤销触发');
         this.undo()
       }
@@ -521,7 +529,7 @@ class CanvasImgEditor {
         && endY === beforeOperationInfo.endY) {
         this.currentOperationInfo = null
       }
-      
+
     }
   }
   resizeGradientArrow(item) {
@@ -540,7 +548,7 @@ class CanvasImgEditor {
     const leftX = endX - headLength * Math.cos(angle + Math.PI / 6)
     const leftY = endY - headLength * Math.sin(angle + Math.PI / 6)
 
-    const steps = 600; // 分段数量
+    const steps = 300; // 分段数量
     // 以箭头正中心值作为线段结束位置
     const dx = ((rightX + leftX + endX) / 3 - startX) / steps;
     const dy = ((rightY + leftY + endY) / 3 - startY) / steps;
@@ -901,7 +909,7 @@ class CanvasImgEditor {
         startX,
         startY,
         width: 2,
-        height: this.textFontSize -0
+        height: this.textFontSize - 0
       }
       this.addNewText = true
       this.currentOperationState = 'add'
@@ -912,7 +920,7 @@ class CanvasImgEditor {
   }
 
   handleTextMouseMove(currentX, currentY) {
-    if(!this.isDrawing) {
+    if (!this.isDrawing) {
       return
     }
     const { currentOperationInfo } = this
@@ -1428,8 +1436,8 @@ class CanvasImgEditor {
     const { endPointWidth, endPointColor } = rect
     rect?.endPointList.forEach((point) => {
       ctx.beginPath();
-      ctx.fillRect(point[0], point[1], endPointWidth, endPointWidth)
       ctx.fillStyle = endPointColor;
+      ctx.fillRect(point[0], point[1], endPointWidth, endPointWidth)
       ctx.fill();
       ctx.closePath();
     })
@@ -1437,14 +1445,14 @@ class CanvasImgEditor {
 
   setRectEndPointCursor() {
     const { indexChoosePoint } = this
-    //   'col-resize': 'col-resize', // 基于纵轴左右调整
-    // 'row-resize': 'row-resize', // 基于纵轴上下调整
+    //   'w-resize': 'w-resize', // 基于纵轴左右调整
+    // 's-resize': 's-resize', // 基于纵轴上下调整
     // 'nesw-resize': 'nesw-resize', // 基于纵轴东北-西南调整
     // 'nwse-resize': 'nwse-resize', // 基于纵轴西北-东南调整
     if ([1, 6].includes(indexChoosePoint)) {
-      this.modifyCursor('row-resize')
+      this.modifyCursor('s-resize')
     } else if ([3, 4].includes(indexChoosePoint)) {
-      this.modifyCursor('col-resize')
+      this.modifyCursor('w-resize')
     } else if ([0, 7].includes(indexChoosePoint)) {
       this.modifyCursor('nwse-resize')
     } else if ([2, 5].includes(indexChoosePoint)) {
@@ -1552,24 +1560,58 @@ class CanvasImgEditor {
 
   //判断是否在边界线上
   inLine(px, py, aPoint = []) {
-    let isOnEdge = false;
+    let point = [px, py]
+    // 提取出矩形的最小和最大 x、y 坐标来形成边界框  
+    let minX = Math.min(aPoint[0][0], aPoint[1][0], aPoint[2][0], aPoint[3][0]);
+    let maxX = Math.max(aPoint[0][0], aPoint[1][0], aPoint[2][0], aPoint[3][0]);
+    let minY = Math.min(aPoint[0][1], aPoint[1][1], aPoint[2][1], aPoint[3][1]);
+    let maxY = Math.max(aPoint[0][1], aPoint[1][1], aPoint[2][1], aPoint[3][1]);
+
+    // 检查点是否在矩形的边界框内（但不包括内部）  
+    // 注意：这里我们稍微放宽了条件，因为我们要包括边界上的点  
+    if (point[0] < minX || point[0] > maxX || point[1] < minY || point[1] > maxY) {
+      // 如果点不在边界框内（包括边界），则直接返回 false  
+      return false;
+    }
+
+    // 现在检查点是否正好在矩形的某条边上  
+    // 这需要比较点与矩形顶点的坐标  
     for (let i = 0; i < aPoint.length; i++) {
-      const p1 = aPoint[i];
-      const p2 = aPoint[(i + 1) % aPoint.length];
-      const x1 = p1[0];
-      const y1 = p1[1];
-      const x2 = p2[0];
-      const y2 = p2[1];
-      // 计算点到直线的距离
-      const distance = Math.abs((y2 - y1) * px - (x2 - x1) * py + x2 * y1 - y2 * x1) / Math.sqrt((y2 - y1) ** 2 + (x2 - x1) ** 2);
-      // 如果点到某条边的距离小于等于0，说明点在这条边上
-      if (distance <= 2) {
-        isOnEdge = true;
-        this.m_iInsertPos = i + 1;
-        break;
+      const [x1, y1] = aPoint[i];
+      const [x2, y2] = aPoint[(i + 1) % aPoint.length];
+
+      // 检查点是否在由 (x1, y1) 和 (x2, y2) 定义的边上  
+      // 这可以通过检查点的 y 坐标是否等于 y1 或 y2（对于水平边）  
+      // 或者检查点的 x 坐标是否等于 x1 或 x2（对于垂直边）  
+      // 并且同时检查另一个坐标是否在线段的对应坐标之间（包括端点）  
+      if ((y1 === point[1] && point[0] >= Math.min(x1, x2) && point[0] <= Math.max(x1, x2)) ||
+        (x1 === point[0] && point[1] >= Math.min(y1, y2) && point[1] <= Math.max(y1, y2))) {
+        return true;
       }
     }
-    return isOnEdge;
+
+    // 如果点不在任何边上，则返回 false  
+    return false;
+
+    // 该方案存在异常，在矩形边的延长直线上也会被判断为在矩形边上
+    // let isOnEdge = false;
+    // for (let i = 0; i < aPoint.length; i++) {
+    //   const p1 = aPoint[i];
+    //   const p2 = aPoint[(i + 1) % aPoint.length];
+    //   const x1 = p1[0];
+    //   const y1 = p1[1];
+    //   const x2 = p2[0];
+    //   const y2 = p2[1];
+    //   // 计算点到直线的距离
+    //   const distance = Math.abs((y2 - y1) * px - (x2 - x1) * py + x2 * y1 - y2 * x1) / Math.sqrt((y2 - y1) ** 2 + (x2 - x1) ** 2);
+    //   // 如果点到某条边的距离小于等于0，说明点在这条边上
+    //   if (distance <= 2) {
+    //     isOnEdge = true;
+    //     this.m_iInsertPos = i + 1;
+    //     break;
+    //   }
+    // }
+    // return isOnEdge;
   }
 
   // 修改鼠标效果
@@ -1811,8 +1853,8 @@ class CanvasImgEditor {
     // if (circle.radiusX > 3 * circle.endPointWidth && circle.radiusY > 3 * circle.endPointWidth) {
     circle.endPointList.forEach(point => {
       ctx.beginPath();
-      ctx.fillRect(point.x, point.y, circle.endPointWidth, circle.endPointWidth)
       ctx.fillStyle = circle.endPointFillColor;
+      ctx.fillRect(point.x, point.y, circle.endPointWidth, circle.endPointWidth)
       ctx.fill();
       ctx.closePath();
     });
@@ -1850,14 +1892,14 @@ class CanvasImgEditor {
   // resize下设置圆的端点样式
   setCircleEndPointCursor() {
     const { indexChoosePoint } = this
-    // 'col-resize': 'col-resize', // 基于纵轴左右调整
-    // 'row-resize': 'row-resize', // 基于纵轴上下调整
+    // 'w-resize': 'w-resize', // 基于纵轴左右调整
+    // 's-resize': 's-resize', // 基于纵轴上下调整
     // 'nesw-resize': 'nesw-resize', // 基于纵轴东北-西南调整
     // 'nwse-resize': 'nwse-resize', // 基于纵轴西北-东南调整
     if ([0, 2].includes(indexChoosePoint)) {
-      this.modifyCursor('row-resize')
+      this.modifyCursor('s-resize')
     } else if ([1, 3].includes(indexChoosePoint)) {
-      this.modifyCursor('col-resize')
+      this.modifyCursor('w-resize')
     } else if ([4, 6].includes(indexChoosePoint)) {
       this.modifyCursor('nwse-resize')
     } else if ([5, 7].includes(indexChoosePoint)) {
