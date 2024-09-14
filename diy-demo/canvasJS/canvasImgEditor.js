@@ -217,6 +217,10 @@ class CanvasImgEditor {
     if (this.currentTool !== 'text') {
       this.hideTextareaNode()
     }
+    if(!['arrow', 'rect', 'circle'].includes(type)) {
+      // 非可再编辑图像，需要关闭激活状态
+      this.clearActiveShape()
+    }
   }
   // 鼠标点击修改当前操作类型
   setCurrentToolTypeByAuto() {
@@ -554,6 +558,7 @@ class CanvasImgEditor {
     const dy = ((rightY + leftY + endY) / 3 - startY) / steps;
 
     ctx.lineCap = 'round'; // 设置线条端点为圆形
+    ctx.lineJoin = 'round'
     ctx.globalCompositeOperation = 'source-over';
     // 绘制箭头主线
     for (let i = 0; i < steps; i++) {
@@ -572,6 +577,8 @@ class CanvasImgEditor {
       ctx.stroke();
     }
     // ctx.closePath()
+    ctx.fillStyle = color;
+    ctx.fill();
 
 
     ctx.beginPath();
@@ -845,6 +852,18 @@ class CanvasImgEditor {
       this.startY = item.endY
     }
   }
+  // 涂鸦数据校验与保存
+  handleScribbleSaveAction() {
+    if (this.currentTool === "scribble") {
+      if (this.currentOperationInfo) {
+        if(this.currentOperationInfo.list.length) {
+          this.scribbleList.push(JSON.parse(JSON.stringify(this.currentOperationInfo)))
+        } else {
+          this.currentOperationInfo = null
+        }
+      }
+    }
+  }
 
   // 橡皮檫
   drawEraser(item) {
@@ -857,19 +876,17 @@ class CanvasImgEditor {
     ctx.fill();
     ctx.closePath(); // 结束路径
   }
-
-  handleScribbleSaveAction() {
-    if (this.currentTool === "scribble") {
-      if (this.currentOperationInfo) {
-        this.scribbleList.push(JSON.parse(JSON.stringify(this.currentOperationInfo)))
-      }
-    }
-  }
-
+  // 橡皮檫数据校验与保存
   handleEraserMouseUp() {
     if (this.currentTool === "eraser") {
       if (this.currentOperationInfo) {
-        this.eraserList.push(JSON.parse(JSON.stringify(this.currentOperationInfo)))
+        // 橡皮檫有效性判断
+        if(this.currentOperationInfo.list.length) {
+          this.eraserList.push(JSON.parse(JSON.stringify(this.currentOperationInfo)))
+        } else {
+          this.currentOperationInfo = null
+        }
+       
       }
       // 恢复成绘制状态
       this.ctx.globalCompositeOperation = 'source-over';
@@ -1058,6 +1075,7 @@ class CanvasImgEditor {
   //   ctx.fillText(item.text, item.startX, item.startY, item.maxWidth);
   // }
   drawText(item, isHide = false) {
+    this.ctx.globalCompositeOperation = 'source-over';
     const { ctx } = this
     ctx.font = `${item.fontSize}px serif`
     ctx.textBaseline = 'top';
@@ -2162,9 +2180,12 @@ class CanvasImgEditor {
     return list
   }
 
-
+  // 保存图像（下载或者返回blob）
   download(isBlob = false, name = 'merged_image') {
     return new Promise((resove) => {
+      // 先移除激活状态
+      this.clearActiveShape()
+      // 创建临时canvas，用于图像合并
       const mergedCanvas = document.createElement('canvas');
       mergedCanvas.width = this.canvasWidth;
       mergedCanvas.height = this.canvasHeight;
@@ -2488,6 +2509,13 @@ class CanvasImgEditor {
   changeCurrentShapeOnMouseDown(shape) {
     this.redrawCanvas()
     this.setCurrentShapeId(shape.id)
+  }
+  // 清除当前激活状态
+  clearActiveShape() {
+    if(this.hasCurrentShapeID()) {
+      this.setCurrentShapeId()
+      this.redrawCanvas()
+    }
   }
 }
 
