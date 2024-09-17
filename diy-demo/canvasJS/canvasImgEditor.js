@@ -24,7 +24,6 @@ const defaultConfig = {
   endPointRadius: 6,
   indexChoosePoint: -1, // 被选中的图形的端点的索引
   endPointFillColor: "#FFFFFF",        //端点内部填充颜色
-  m_iIndexHoverPoint: -1, // 被hover的图形的端点的索引
   currentColor: '#ff0000',
   m_szDrawColor: '#ff0000', //图形中线的颜色
   ratio: 1, // 分辨率
@@ -81,13 +80,14 @@ class CanvasImgEditor {
     this.endPointRadius = 6 // 默认端点半径
     this.endPointFillColor = "#FFFFFF";        //端点内部填充颜色
     this.indexChoosePoint = -1 // 被选中的图形的端点的索引
-    this.m_iIndexHoverPoint = -1 // 被hover的图形的端点的索引
     this.m_szDrawColor = this.currentColor;  //图形中线的颜色
     this.ratio = 1 // 分辨率
     this._lastClickTime = new Date().getTime()
     this.imgNode = null
     this.endPointWidth = 4 // 默认端点宽度
     this.endPointColor = '#fff' // 默认端点填充颜色
+    this.imgPaintAuto = options.imgPaintAuto || false
+    this.imgPaintAutoBgColor = options.imgPaintAutoBgColor || 'blue'
 
     this.typeAndShapeMap = {
       'arrow': 'arrowList',
@@ -138,7 +138,7 @@ class CanvasImgEditor {
     this.scaleRadio = 1 // 缩放比例
     this.scaleChangeValue = options?.scaleChangeValue || 0.1 // 缩放时递增、减的比例
     this.scaleRadioMax = options?.scaleRadioMax || 2 // 最大缩放比例
-    this.scaleRadioMin = options?.scaleRadioMin|| 0.2 // 最小缩放比例
+    this.scaleRadioMin = options?.scaleRadioMin || 0.2 // 最小缩放比例
     this.scaleOffsetX = 0
     this.scaleOffsetY = 0
     this.enlargeState = true
@@ -148,17 +148,23 @@ class CanvasImgEditor {
 
 
     this.loadCanvas(options);
-    this.initMoveEvent()
+    this.initMouseEvent()
     if (options.imgSrc) {
       this.loadImage(options.imgSrc);
     }
 
-    this.drawGradientArrow = this.drawGradientArrow.bind(this)
-    this.saveAction = this.saveAction.bind(this)
-    this.handleMouseDown = this.handleMouseDown.bind(this)
-    this.mergeCanvasImageData = this.mergeCanvasImageData.bind(this)
+    // this.drawGradientArrow = this.drawGradientArrow.bind(this)
+    // this.saveAction = this.saveAction.bind(this)
+    // this.handleMouseDown = this.handleMouseDown.bind(this)
+    // this.mergeCanvasImageData = this.mergeCanvasImageData.bind(this)
   }
-
+  /**
+   * 处理canvas加载和父级判断
+   *
+   * @param {Object} options
+   * @return {*} 
+   * @memberof CanvasImgEditor
+   */
   loadCanvas(options) {
     this.canvas = document.getElementById(options.canvasId);
     if (!this.canvas) {
@@ -176,7 +182,12 @@ class CanvasImgEditor {
     }
     this.setCanvasRatio()
   }
-
+  /**
+   * 处理图片加载，Blob流处理
+   *
+   * @param {*} src
+   * @memberof CanvasImgEditor
+   */
   loadImage(src) {
     if (src && this.canvasParent) {
       if (!this.canvasImg) {
@@ -198,7 +209,34 @@ class CanvasImgEditor {
       img.src = src;
       this.canvasImgSrc = src
       img.onload = () => {
-        this.ctxImg.drawImage(img, 0, 0, this.canvasWidth, this.canvasHeight);
+        console.log('img-width-height', img.width, img.height)
+
+        if (this.imgPaintAuto) {
+          // 图片宽高比不变，以大的一项铺满，另一方向auto
+          const { width, height } = img
+          let paintWidth = 0
+          let paintHeight = 0
+          let paintX = 0
+          let paintY = 0
+          if (width >= height) {
+            paintWidth = this.canvasWidth
+            paintX = 0
+            paintHeight = this.canvasHeight / (width / this.canvasWidth)
+            paintY = (this.canvasHeight - paintHeight) / 2
+          } else {
+            paintHeight = this.canvasHeight
+            paintY = 0
+            paintWidth = this.canvasWidth / (height / this.canvasHeight)
+            paintX = (this.canvasWidth - paintWidth) / 2
+          }
+          this.ctxImg.fillStyle = this.imgPaintAutoBgColor
+          this.ctxImg.fillRect(0, 0, this.canvasWidth, this.canvasHeight)
+          this.ctxImg.drawImage(img, paintX, paintY, paintWidth, paintHeight);
+        } else {
+          // 百分百铺满
+          this.ctxImg.drawImage(img, 0, 0, this.canvasWidth, this.canvasHeight);
+        }
+
         this.imgNode = img
       };
       img.onerror = (e) => {
@@ -208,14 +246,23 @@ class CanvasImgEditor {
     }
   }
 
-  // 设置当前操作类型
+  /**
+   * 设置当前操作类型
+   *
+   * @param {string} type 当前操作的类型
+   * @memberof CanvasImgEditor
+   */
   setCurrentToolType(type) {
     this.currentTool = type
     if (this.currentTool !== 'text') {
       this.hideTextareaNode()
     }
   }
-  // 鼠标点击修改当前操作类型
+  /**
+   * 鼠标点击可编辑图形时，自动修改当前操作类型
+   *
+   * @memberof CanvasImgEditor
+   */
   setCurrentToolTypeByAuto() {
     const { hoverActiveShapeId, hoverActiveShapeType, currentTool } = this
     if (hoverActiveShapeId > -1 && hoverActiveShapeType && hoverActiveShapeType !== currentTool) {
@@ -226,8 +273,12 @@ class CanvasImgEditor {
     }
   }
 
-
-
+  /**
+   * 鼠标按下事件处理逻辑
+   *
+   * @param {MouseEvent} e 鼠标按下对象
+   * @memberof CanvasImgEditor
+   */
   handleMouseDown(e) {
     if (this.changeToolTypeAuto) {
       // 若运行自动切换可编辑图形类型，则鼠标按下后切换类型
@@ -275,8 +326,16 @@ class CanvasImgEditor {
       this.handleScaleMouseDown(e)
     }
   }
-
-  initMoveEvent() {
+  /**
+   * 初始化鼠标事件,包含 
+   * 鼠标事件：mouseDown|mouseMove | mouseUp | mouseLeave
+   * 拖拽事件：drag | dragStart
+   * 滚轮事件：wheel
+   * 键盘事件：keydown 监听文本输入和回车
+   *
+   * @memberof CanvasImgEditor
+   */
+  initMouseEvent() {
     const { canvas } = this
     canvas.addEventListener('mousedown',
       e => this.handleMouseDown(e)
@@ -378,10 +437,22 @@ class CanvasImgEditor {
     });
   }
 
+  /**
+   * 判断是否为双击事件
+   *
+   * @param {number} newClickTime 新的点击时间
+   * @return {boolean} 
+   * @memberof CanvasImgEditor
+   */
   _isDoubleClick(newClickTime) {
     return newClickTime - this._lastClickTime < DBCLICK_TIME;
   }
 
+  /**
+   * 处理画箭头时的mouseDown事件
+   *
+   * @memberof CanvasImgEditor
+   */
   handleArrowMouseDown() {
     const list = this.arrowList
     let selected = false
@@ -521,7 +592,7 @@ class CanvasImgEditor {
         && endY === beforeOperationInfo.endY) {
         this.currentOperationInfo = null
       }
-      
+
     }
   }
   resizeGradientArrow(item) {
@@ -901,7 +972,7 @@ class CanvasImgEditor {
         startX,
         startY,
         width: 2,
-        height: this.textFontSize -0
+        height: this.textFontSize - 0
       }
       this.addNewText = true
       this.currentOperationState = 'add'
@@ -912,7 +983,7 @@ class CanvasImgEditor {
   }
 
   handleTextMouseMove(currentX, currentY) {
-    if(!this.isDrawing) {
+    if (!this.isDrawing) {
       return
     }
     const { currentOperationInfo } = this
@@ -1352,39 +1423,6 @@ class CanvasImgEditor {
     if (this.checkCurrentShapeId(item.id)) {
       this.drawRectEndPoint(item)
     }
-    // if (width > 30 && height > 30) {
-
-    // const iHalfWidth = Math.round(width / 2);
-    // const iHalfHeight = Math.round(height / 2);
-    // if (editType === 0) {
-    //   const aPointX = [
-    //     startX, startX + iHalfWidth, startX + width,
-    //     startX, startX + width,
-    //     startX, startX + iHalfWidth, startX + width
-    //   ];
-    //   const aPointY = [
-    //     startY, startY, startY,
-    //     startY + iHalfHeight, startY + iHalfHeight,
-    //     startY + height, startY + height, startY + height
-    //   ];
-    //   const allPointList = []
-    //   for (let i = 0; i < 8; i++) {
-    //     ctx.beginPath();
-    //     ctx.arc(aPointX[i], aPointY[i], this.endPointRadius, 0, 360, false);
-    //     ctx.fillStyle = this.m_szDrawColor;
-    //     ctx.closePath();
-    //     ctx.fill();
-
-    //     ctx.beginPath();
-    //     ctx.strokeStyle = this.endPointFillColor;
-    //     ctx.arc(aPointX[i], aPointY[i], this.endPointRadius + 1, 0, 360, false);
-    //     ctx.closePath();
-    //     ctx.stroke();
-    //     allPointList.push([aPointX[i], aPointY[i]])
-    //   }
-    //   item.allPointList = allPointList
-    // }
-    // }
   }
 
   redrawRectList(item) {
@@ -1427,9 +1465,9 @@ class CanvasImgEditor {
     const { ctx } = this
     const { endPointWidth, endPointColor } = rect
     rect?.endPointList.forEach((point) => {
+      ctx.fillStyle = endPointColor;
       ctx.beginPath();
       ctx.fillRect(point[0], point[1], endPointWidth, endPointWidth)
-      ctx.fillStyle = endPointColor;
       ctx.fill();
       ctx.closePath();
     })
@@ -1536,15 +1574,10 @@ class CanvasImgEditor {
         // 根据 chooseEnabled 的值决定是否选中
         if (chooseEnabled) {
           this.indexChoosePoint = i; // 选中当前圆心点
-        } else {
-          this.m_iIndexHoverPoint = i; // 设置当前圆心点为悬停状态
         }
 
         // 找到符合条件的第一个圆心点后，跳出循环
         break;
-      } else {
-        // 如果当前点不在圆内，则设置悬停点索引为 -1
-        this.m_iIndexHoverPoint = -1;
       }
     }
     return bRet; // 返回最终结果
@@ -1810,9 +1843,9 @@ class CanvasImgEditor {
     const { ctx } = this
     // if (circle.radiusX > 3 * circle.endPointWidth && circle.radiusY > 3 * circle.endPointWidth) {
     circle.endPointList.forEach(point => {
+      ctx.fillStyle = circle.endPointFillColor;
       ctx.beginPath();
       ctx.fillRect(point.x, point.y, circle.endPointWidth, circle.endPointWidth)
-      ctx.fillStyle = circle.endPointFillColor;
       ctx.fill();
       ctx.closePath();
     });
@@ -2088,14 +2121,6 @@ class CanvasImgEditor {
         this[funcName](item)
       }
     })
-
-    // this.redrawScribbleList()
-    // this.redrawEraserList()
-    // this.redrawMosaicList() // 绘制马赛克
-    // this.redrawArrowList()
-    // this.redrawRectList()
-    // this.redrawTextList()
-    // this.redrawCircleList()
   }
 
   clearCanvas() {
