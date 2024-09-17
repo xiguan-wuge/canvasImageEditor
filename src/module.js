@@ -145,7 +145,11 @@ export default class {
         });
     }
 
-    //undo命令
+    /**
+     * 撤销
+     *
+     * @return {*} 
+     */
     undo() {
         let command = this._undoStack.pop();
         let promise;
@@ -166,7 +170,11 @@ export default class {
         return promise;
     }
 
-    //redo命令
+    /**
+     * 取消撤销
+     *
+     * @return {Promise} 
+     */
     redo() {
         let command = this._redoStack.pop();
 
