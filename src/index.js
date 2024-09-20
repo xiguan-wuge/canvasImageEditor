@@ -11,7 +11,6 @@ const { states, keyCodes, fObjectOptions } = consts;
 const { isUndefined, forEach, hasStamp } = util;
 
 let DomURL = window.URL || window.webkitURL || window;
-
 class FabricPhoto {
     constructor(element, option) {
         option = option || {};
@@ -38,7 +37,10 @@ class FabricPhoto {
             this._setSelectionStyle(option.selectionStyle);
         }
     }
-
+    /**
+     * 设置已选图形的样式
+     * @param {Object} styles 
+     */
     _setSelectionStyle(styles) {
         Object.assign(fObjectOptions.SELECTION_STYLE, styles);
     }
