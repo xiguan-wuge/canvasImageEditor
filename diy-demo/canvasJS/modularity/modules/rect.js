@@ -242,6 +242,96 @@ export default class Rect extends Base {
   }
 
   /**
+   * 绘制矩形，不包含端点
+   * @param {Object} item 矩形信息 
+   */
+  drawRect(item) {
+    const parent = this.getParent()
+    const { ctx } = parent
+    const { pointList = [] } = item
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.lineWidth = item.lineWidth || 2;
+    ctx.strokeStyle = item.color || 'black';
+    const startX = pointList[0][0]
+    const startY = pointList[0][1]
+    item.startX = startX
+    item.startY = startY
+
+    ctx.strokeRect(item.startX, item.startY, item.width, item.height);
+
+    // 获取端点信息
+    this.getRectEndPointList(item)
+    // 绘制矩形中4个边角点和4边的中间点
+    // const isDrawEndPoint = (width > item.endPointWidth * 3) && (height > item.endPointWidth * 3)
+    if (parent?.checkCurrentShapeId(item.id)) {
+      this.drawRectEndPoint(item)
+    }
+  }
+
+  /**
+   * 重绘矩形
+   * @param {Object} item 某一矩形信息 
+   */
+  redrawRectList(item) {
+    const parent = this.getParent()
+    if (item) {
+      this.drawRect(item)
+    } else if (parent.rectList?.length) {
+      parent.rectList.forEach(item => {
+        this.drawRect(item)
+      })
+    }
+  }
+
+  /**
+   * 生成矩形的端点,触发绘制
+   * @param {Object} rect 某一矩形的信息 
+   * @param {Boolean} isDrawEndPoint 是否绘制矩形端点 
+   */
+  getRectEndPointList(rect, isDrawEndPoint) {
+    const { width, height, endPointWidth, pointList } = rect
+    const [startX, startY] = pointList[0]
+    const endPointHalfWidth = endPointWidth / 2
+    const iHalfWidth = Math.round(width / 2);
+    const iHalfHeight = Math.round(height / 2);
+    const aPointX = [
+      startX - endPointHalfWidth, startX + iHalfWidth - endPointHalfWidth, startX + width - endPointHalfWidth,
+      startX - endPointHalfWidth, startX + width - endPointHalfWidth,
+      startX - endPointHalfWidth, startX + iHalfWidth - endPointHalfWidth, startX + width - endPointHalfWidth
+    ];
+    const aPointY = [
+      startY - endPointHalfWidth, startY - endPointHalfWidth, startY - endPointHalfWidth,
+      startY + iHalfHeight - endPointHalfWidth, startY + iHalfHeight - endPointHalfWidth,
+      startY + height - endPointHalfWidth, startY + height - endPointHalfWidth, startY + height - endPointHalfWidth
+    ];
+    const endPointList = []
+    for (let i = 0; i < 8; i++) {
+      endPointList.push([aPointX[i], aPointY[i]])
+    }
+    rect.endPointList = endPointList
+    if (isDrawEndPoint) {
+      this.drawRectEndPoint(rect)
+    }
+  }
+
+  /**
+   * 绘制矩形端点
+   * @param {Array} rect 矩形列表信息
+   */
+  drawRectEndPoint(rect) {
+    const parent = this.getParent()
+    const { ctx } = parent
+    const { endPointWidth, endPointColor } = rect
+    rect?.endPointList.forEach((point) => {
+      ctx.fillStyle = endPointColor;
+      ctx.beginPath();
+      ctx.fillRect(point[0], point[1], endPointWidth, endPointWidth)
+      ctx.fill();
+      ctx.closePath();
+    })
+  }
+
+  /**
    * 设置矩形端点的鼠标样式
    */
   setRectEndPointCursor() {
