@@ -33,7 +33,7 @@ export default class Arrow  extends Base {
         const halfEndPointWidth = endPointWidth / 2
         if (insideRect(startX - (endPointWidth), startY - 2, 4, 4, parent.startX, parent.startY)) {
           parent.changeCurrentShapeOnMouseDown(arrow)
-          parent.resizeGradientArrow()
+          this.resizeGradientArrow()
           parent.setCurrentShapeId(arrow.id)
           parent.redrawCanvas()
 
@@ -44,7 +44,7 @@ export default class Arrow  extends Base {
           break;
         } else if (insideRect(endX - halfEndPointWidth, endY - halfEndPointWidth, endPointWidth, endPointWidth, parent.startX, parent.startY)) {
           parent.changeCurrentShapeOnMouseDown(arrow)
-          parent.resizeGradientArrow()
+          this.resizeGradientArrow()
           parent.setCurrentShapeId(arrow.id)
           parent.redrawCanvas()
 
@@ -55,7 +55,7 @@ export default class Arrow  extends Base {
           break;
         } else if (isPointOnThickLine(parent.startX, parent.startY, startX, startY, endX, endY, endWidth)) {
           parent.changeCurrentShapeOnMouseDown(arrow)
-          parent.resizeGradientArrow()
+          this.resizeGradientArrow()
           parent.setCurrentShapeId(arrow.id)
           parent.redrawCanvas()
           parent.currentOperationState = 'move'

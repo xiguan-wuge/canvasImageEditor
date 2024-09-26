@@ -170,6 +170,10 @@ class CanvasImgEditor {
     this._register(new Mosaic(this))
     this._register(new Eraser(this))
   }
+  /**
+   * 功能模块注册
+   * @param {*} component 主要注册是功能实例
+   */
   _register(component) {
     this.modules[component.getName()] = component
   }
@@ -438,12 +442,6 @@ class CanvasImgEditor {
     return newClickTime - this._lastClickTime < DBCLICK_TIME;
   }
 
-  
-  
-
-  
-
-
   // 判断是否在矩形内
   insideRect(rectX, rectY, rectWidth, rectHeight, pointX, pointY) {
     return (pointX >= rectX && pointX <= rectX + rectWidth)
@@ -459,10 +457,6 @@ class CanvasImgEditor {
     this.mergedCanvas = tempCanvas
     this.mergedCtx = tempCanvas.getContext('2d');
   }
-
-  
-
-
 
   // 设置字体大小
   setTextFontSize(fontSize) {
@@ -631,7 +625,7 @@ class CanvasImgEditor {
       this[key] = []
     })
     this.restoreScale()
-    this.hideTextareaNode()
+    this.modules.text?.hideTextareaNode()
     this.onListenUndoState()
     this.onListenRedoState()
     this.onListenClearState()
@@ -806,6 +800,9 @@ class CanvasImgEditor {
     })
   }
 
+  /**
+   * 重置缩放
+   */
   restoreScale() {
     if (this.scaleRadio !== 1) {
       const newScaleRadio = 1
@@ -817,6 +814,10 @@ class CanvasImgEditor {
     }
   }
 
+  /**
+   * 鼠标拖动时，缩放的处理
+   * @param {*} e 
+   */
   handleScaleMouseDown(e) {
     this.scaleOffsetXCopy = this.scaleOffsetX
     this.scaleOffsetYCopy = this.scaleOffsetY
