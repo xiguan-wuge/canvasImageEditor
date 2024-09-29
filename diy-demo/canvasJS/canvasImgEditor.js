@@ -11,8 +11,6 @@ const cursorTypeMap = {
   'n-resize': 'n-resize',
   'se-resize': 'se-resize',
   'sw-resize': 'sw-resize',
-  's-resize': 's-resize',
-  'w-resize': 'w-resize',
   'w-resize': 'w-resize', // 基于纵轴左右调整
   's-resize': 's-resize', // 基于纵轴上下调整
   'nesw-resize': 'nesw-resize', // 基于纵轴东北-西南调整
@@ -88,7 +86,7 @@ class CanvasImgEditor {
     this.endPointWidth = 4 // 默认端点宽度
     this.endPointColor = '#fff' // 默认端点填充颜色
     this.imgPaintAuto = options.imgPaintAuto || false
-    this.imgPaintAutoBgColor = options.imgPaintAutoBgColor || 'blue'
+    this.imgPaintAutoBgColor = options.imgPaintAutoBgColor || '#fff'
 
     this.supportKeyboardUndo = options.supportKeyboardUndo || defaultConfig.supportKeyboardUndo // 是否支持键盘按键撤销
 
@@ -161,6 +159,7 @@ class CanvasImgEditor {
     // this.handleMouseDown = this.handleMouseDown.bind(this)
     // this.mergeCanvasImageData = this.mergeCanvasImageData.bind(this)
   }
+
   /**
    * 处理canvas加载和父级判断
    *
@@ -185,6 +184,7 @@ class CanvasImgEditor {
     }
     this.setCanvasRatio()
   }
+
   /**
    * 处理图片加载，Blob流处理
    *
@@ -207,7 +207,7 @@ class CanvasImgEditor {
       const img = new Image();
       img.crossOrigin = 'Anonymous'; // 允许跨域访问
       if (src instanceof Blob) {
-        src = URL.createObjectURL(blob);
+        src = URL.createObjectURL(src);
       }
       img.src = src;
       this.canvasImgSrc = src
@@ -265,6 +265,7 @@ class CanvasImgEditor {
       this.clearActiveShape()
     }
   }
+
   /**
    * 鼠标点击可编辑图形时，自动修改当前操作类型
    *
@@ -333,6 +334,7 @@ class CanvasImgEditor {
       this.handleScaleMouseDown(e)
     }
   }
+
   /**
    * 初始化鼠标事件,包含 
    * 鼠标事件：mouseDown|mouseMove | mouseUp | mouseLeave
@@ -542,6 +544,7 @@ class CanvasImgEditor {
     }
     this.beforeOperationInfo = JSON.parse(JSON.stringify(this.currentOperationInfo))
   }
+
   handleArrowMouseMove(currentX, currentY) {
     const { currentOperationState, currentOperationInfo } = this
     if (currentOperationState === 'move') {
@@ -606,7 +609,8 @@ class CanvasImgEditor {
 
     }
   }
-  resizeGradientArrow(item) {
+
+  resizeGradientArrow() {
     this.redrawCanvas()
   }
 
@@ -734,6 +738,7 @@ class CanvasImgEditor {
     // 判断距离是否小于或等于线段的一半宽度
     return distance <= lineWidth / 2 && withinSegment;
   }
+
   redrawArrowList(item) {
     if (item) {
       this.drawGradientArrow(item)
@@ -764,6 +769,7 @@ class CanvasImgEditor {
       })
     }
   }
+
   // 重绘橡皮擦
   redrawEraserList(item) {
     if (item) {
@@ -923,6 +929,7 @@ class CanvasImgEditor {
       this.startY = item.endY
     }
   }
+
   // 涂鸦数据校验与保存
   handleScribbleSaveAction() {
     if (this.currentTool === "scribble") {
@@ -947,6 +954,7 @@ class CanvasImgEditor {
     ctx.fill();
     ctx.closePath(); // 结束路径
   }
+
   // 橡皮檫数据校验与保存
   handleEraserMouseUp() {
     if (this.currentTool === "eraser") {
@@ -964,7 +972,7 @@ class CanvasImgEditor {
     }
   }
 
-  handleTextMouseDown(startX, startY, isDoubleClick = false) {
+  handleTextMouseDown(startX, startY) {
     if (this.inTextEdit || this.addNewText) {
       this.isDrawing = false
       this.onListenEnlargeState = 'add'
@@ -1077,7 +1085,6 @@ class CanvasImgEditor {
 
   // 区分文本二次编辑还是移动，采用mousedown 和mouseup 模拟click事件
   handleTextEditAgainOrMove(selectedText, isDoubleClick) {
-    const { ctx } = this
     if (isDoubleClick) {
       // 双击状态是编辑文本
       this.currentOperationInfo = selectedText
@@ -1161,26 +1168,28 @@ class CanvasImgEditor {
     // ctx.strokeRect(item.startX - 1, item.startY - 1, metrics.width + 2, metrics.height + 2);
 
     // 绘制文本
-    let fillColor = isHide ? 'rgba(0, 0, 0, 0)' : item.color
+    const fillColor = isHide ? 'rgba(0, 0, 0, 0)' : item.color
     metrics.lines.forEach((line) => {
       ctx.fillStyle = fillColor;
       ctx.fillText(line, item.startX, y);
       y += item.fontSize * item.lineHeight;
     });
     // 返回边框的宽高
-    let width = metrics.width < 2 ? 2 : metrics.width
-    return { width: width, height: metrics.height };
+    const width = metrics.width < 2 ? 2 : metrics.width
+    return { width, height: metrics.height };
   }
+
   // 文本度量
   _getTextMetrics(item) {
     const { ctx } = this
     const lines = item.text.split('\n');
     const lineMetrics = lines.map(line => this._splitTextIntoLines(line, item));
-    let allLineWidth = lineMetrics.map(line => ctx.measureText(line).width)
+    const allLineWidth = lineMetrics.map(line => ctx.measureText(line).width)
     const maxWidth = Math.max(...allLineWidth)
     const totalHeight = lineMetrics.length * item.fontSize * item.lineHeight;
     return { width: maxWidth, height: totalHeight, lines: lineMetrics.flat() };
   }
+
   // 将输入的文本换行
   _splitTextIntoLines(text, item) {
     const { ctx } = this
@@ -1190,27 +1199,29 @@ class CanvasImgEditor {
 
     for (let i = 1; i < words.length; i++) {
       const word = words[i];
-      const width = ctx.measureText(currentLine + ' ' + word).width;
+      const {width} = ctx.measureText(`${currentLine  } ${  word}`);
       if (item.maxWidth && width > item.maxWidth) {
         lines.push(currentLine);
         currentLine = word;
       } else {
-        currentLine += ' ' + word;
+        currentLine += ` ${  word}`;
       }
     }
     lines.push(currentLine);
     return lines;
   }
+
   // 更新文本域宽高
   updateTextarea() {
     this.currentOperationInfo.text = this.textareaNode.value
-    let { width, height } = this.drawText(this.currentOperationInfo, true)
+    const { width, height } = this.drawText(this.currentOperationInfo, true)
     const ratio = this.getCanvasRatio()
     this.currentOperationInfo.width = width
     this.currentOperationInfo.height = height
     this.textareaNode.style.width = `${Math.ceil(width / ratio)}px`
     this.textareaNode.style.height = `${Math.ceil(height / ratio)}px`
   }
+
   // 设置字体大小
   setTextFontSize(fontSize) {
     this.textFontSize = fontSize - 0
@@ -1232,7 +1243,6 @@ class CanvasImgEditor {
       position: 'absolute',
       padding: '0px',
       display: 'none',
-      border: '1px bold #000',
       overflow: 'hidden',
       resize: 'none',
       outline: 'none',
@@ -1253,7 +1263,7 @@ class CanvasImgEditor {
       'transform-origin': 'left top',
       border: '1px solid light-dark(rgb(118, 118, 118), rgb(133, 133, 133));'
     }
-    let styleStr = Object.keys(textStyleObj).map(item => {
+    const styleStr = Object.keys(textStyleObj).map(item => {
       return `${item}:${textStyleObj[item]};`
     }).join('')
     textarea.setAttribute('style', styleStr);
@@ -1271,6 +1281,7 @@ class CanvasImgEditor {
       }
     });
   }
+
   showTextareaNode() {
     const { startX, startY, color, text, width, height, fontSize } = this.currentOperationInfo
     const ratio = this.getCanvasRatio()
@@ -1297,7 +1308,7 @@ class CanvasImgEditor {
   // 获取文本
   getTextAtPosition(x, y) {
     // 从后往前遍历，找到最上面的文本
-    const { textList, ctx } = this
+    const { textList } = this
     for (let i = textList.length - 1; i >= 0; i--) {
       const textObject = textList[i];
       const { startX, startY, width, height } = textObject
@@ -1405,6 +1416,7 @@ class CanvasImgEditor {
     }
 
   }
+
   handleRectMouseUp() {
     if (this.currentTool === "rect") {
       if (this.rectOperationState === 'add') {
@@ -1433,7 +1445,7 @@ class CanvasImgEditor {
   // 矩形
   drawRect(item) {
     const { ctx } = this
-    const { width, height, pointList = [] } = item
+    const {pointList = [] } = item
     ctx.globalCompositeOperation = 'source-over';
     ctx.lineWidth = item.lineWidth || 2;
     ctx.strokeStyle = item.color || 'black';
@@ -1489,6 +1501,7 @@ class CanvasImgEditor {
       this.drawRectEndPoint(rect)
     }
   }
+
   drawRectEndPoint(rect) {
     const { ctx } = this
     const { endPointWidth, endPointColor } = rect
@@ -1613,12 +1626,12 @@ class CanvasImgEditor {
 
   //判断是否在边界线上
   inLine(px, py, aPoint = []) {
-    let point = [px, py]
+    const point = [px, py]
     // 提取出矩形的最小和最大 x、y 坐标来形成边界框  
-    let minX = Math.min(aPoint[0][0], aPoint[1][0], aPoint[2][0], aPoint[3][0]);
-    let maxX = Math.max(aPoint[0][0], aPoint[1][0], aPoint[2][0], aPoint[3][0]);
-    let minY = Math.min(aPoint[0][1], aPoint[1][1], aPoint[2][1], aPoint[3][1]);
-    let maxY = Math.max(aPoint[0][1], aPoint[1][1], aPoint[2][1], aPoint[3][1]);
+    const minX = Math.min(aPoint[0][0], aPoint[1][0], aPoint[2][0], aPoint[3][0]);
+    const maxX = Math.max(aPoint[0][0], aPoint[1][0], aPoint[2][0], aPoint[3][0]);
+    const minY = Math.min(aPoint[0][1], aPoint[1][1], aPoint[2][1], aPoint[3][1]);
+    const maxY = Math.max(aPoint[0][1], aPoint[1][1], aPoint[2][1], aPoint[3][1]);
 
     // 检查点是否在矩形的边界框内（但不包括内部）  
     // 注意：这里我们稍微放宽了条件，因为我们要包括边界上的点  
@@ -1860,7 +1873,7 @@ class CanvasImgEditor {
     if (this.currentTool === 'circle') {
       // 先判断当前图像是否符合
       if (this.currentOperationState === 'add' &&
-        (this.currentOperationInfo.radiusX == 0
+        (this.currentOperationInfo.radiusX === 0
           || this.currentOperationInfo.radiusY === 0)) {
         // 是新增状态且半径为空的圆，需要剔除
         this.circleList.pop()
@@ -2096,6 +2109,7 @@ class CanvasImgEditor {
     }
     return state
   }
+
   // 监听取消撤销状态
   onListenRedoState() {
     const state = this.undoStack.length > 0
@@ -2107,6 +2121,7 @@ class CanvasImgEditor {
     }
     return state
   }
+
   // 监听复原状态
   onListenClearState(isImmediate) {
     const state = this.actions.length > 0
@@ -2118,6 +2133,7 @@ class CanvasImgEditor {
     }
     return state
   }
+
   onListenEnlargeState(isImmediate) {
     const state = this.scaleRadio >= this.scaleRadioMax
     if (this.enlargeState !== state) {
@@ -2128,6 +2144,7 @@ class CanvasImgEditor {
     }
     return state
   }
+
   onListenReduceState(isImmediate) {
     const state = this.scaleRadio <= this.scaleRadioMin
     if (this.reduceState !== state) {
@@ -2192,8 +2209,8 @@ class CanvasImgEditor {
   // 对历史栈中的图像去重，保留历史栈顺序
   getUniqueShapeList() {
     const { actions } = this
-    let list = []
-    let map = []
+    const list = []
+    const map = []
     let item = null
     for (let len = actions.length, i = len - 1; i >= 0; i--) {
       item = actions[i]
@@ -2455,6 +2472,7 @@ class CanvasImgEditor {
       type: 'circle'
     }
   }
+
   checkArrowPoint(list, currentX, currentY) {
     let selectedId = -1
     if (list && list.length > 0) {
@@ -2480,6 +2498,7 @@ class CanvasImgEditor {
       type: 'arrow'
     }
   }
+
   // 处理鼠标hover
   handleElseMouseMove(currentX, currentY) {
     let selected = {}
@@ -2499,6 +2518,7 @@ class CanvasImgEditor {
     this.hoverActiveShapeId = id
     this.hoverActiveShapeType = type
   }
+
   checkTextHover(list, currentX, currentY) {
     let selectedId = -1
     const selectedText = this.getTextAtPosition(currentX, currentY)
@@ -2516,25 +2536,30 @@ class CanvasImgEditor {
   setCurrentShapeId(id = -1) {
     this.currentShapeId = id
   }
+
   // 判断当前激活图像是否和自身相同
   checkCurrentShapeId(id) {
     return this.currentShapeId === id
   }
+
   // 判断当前是否存在激活的图像ID
   hasCurrentShapeID() {
     return this.currentShapeId > -1
   }
+
   // 激活图像检测，若无激活ID，则重绘，取消激活状态
   checkActiveShape() {
     if (!this.hasCurrentShapeID()) {
       this.redrawCanvas()
     }
   }
+
   // 当鼠标按下时，切换当前激活图像
   changeCurrentShapeOnMouseDown(shape) {
     this.redrawCanvas()
     this.setCurrentShapeId(shape.id)
   }
+
   // 清除当前激活状态
   clearActiveShape() {
     if(this.hasCurrentShapeID()) {
