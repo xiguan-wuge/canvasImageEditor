@@ -4,7 +4,9 @@ const path = require('path');
 
 module.exports = {
     entry: {
-        index: ['./demo/index.js']
+        // index: ['./demo/index.js']
+        // index: ['./diy-demo/canvasJS/canvasImgEditor.js'] // 整体js文件
+        index: ['./diy-demo/canvasJS/modularity/canvasImgEditor.js'] // 模块化拆分后的js文件
     },
     output: {
         filename: '[name].js',

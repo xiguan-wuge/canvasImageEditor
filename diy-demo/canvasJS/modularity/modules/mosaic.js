@@ -1,9 +1,6 @@
 import Base from "./base.js"
 import {
-  canvasGlobalIdAdd,
-  insideRect,
-  isPointInEllipseRing,
-  isPointOnThickLine
+  canvasGlobalIdAdd
 } from '../utils.js'
 
 export default class Circle extends Base {

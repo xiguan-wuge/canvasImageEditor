@@ -6,29 +6,10 @@ import Scribble from './modules/scribble.js'
 import Mosaic from './modules/mosaic.js'
 import Eraser from './modules/eraser.js'
 
-import {
-  isFunction
-} from './utils.js'
+import {isFunction} from './utils.js'
 
-const cursorTypeMap = {
-  auto: 'auto', // 默认值，浏览器根据元素自动设置
-  default: 'default', // 普通指针
-  move: 'move', // 移动
-  text: 'text', // 文本
-  // 调整光标大小,分别表示向各个方向（东、东北、西北、北、东南、西南、南、西）调整大小的光标
-  'e-resize': 'e-resize',
-  'ne-resize': 'ne-resize',
-  'nw-resize': 'nw-resize',
-  'n-resize': 'n-resize',
-  'se-resize': 'se-resize',
-  'sw-resize': 'sw-resize',
-  's-resize': 's-resize',
-  'w-resize': 'w-resize',
-  'col-resize': 'col-resize', // 基于纵轴左右调整
-  'row-resize': 'row-resize', // 基于纵轴西北-东南调整
-  'nesw-resize': 'nesw-resize', // 基于纵轴东北-西南调整
-  'nwse-resize': 'nwse-resize', // 基于纵轴西北-东南调整
-}
+import {cursorTypeMap} from './constant.js'
+
 // 默认数据
 const defaultConfig = {
   currentWidth: 2,
@@ -131,7 +112,6 @@ class CanvasImgEditor {
     this.textareaNode = null
     this.textFontSize = 20
     this.textFontWeight = 1
-    this.inTextEdit = false // 是否处于文本编辑状态
 
     // 矩形
     this.rectList = []
@@ -170,6 +150,7 @@ class CanvasImgEditor {
     this._register(new Mosaic(this))
     this._register(new Eraser(this))
   }
+
   /**
    * 功能模块注册
    * @param {*} component 主要注册是功能实例
@@ -177,6 +158,7 @@ class CanvasImgEditor {
   _register(component) {
     this.modules[component.getName()] = component
   }
+
   /**
    * 处理canvas加载和父级判断
    *
@@ -201,6 +183,7 @@ class CanvasImgEditor {
     }
     this.setCanvasRatio()
   }
+
   /**
    * 处理图片加载，Blob流处理
    *
@@ -220,19 +203,22 @@ class CanvasImgEditor {
 
       this.canvas.style.position = 'absolute';
       this.canvas.style.zIndex = 1;
-      const img = new Image();
+      const img = new window.Image();
       img.crossOrigin = 'Anonymous'; // 允许跨域访问
-      if (src instanceof Blob) {
-        src = URL.createObjectURL(blob);
+      let srcPath = src
+      if (srcPath instanceof Blob) {
+        srcPath = URL.createObjectURL(srcPath);
       }
-      img.src = src;
-      this.canvasImgSrc = src
+      img.src = srcPath;
+      this.canvasImgSrc = srcPath
       img.onload = () => {
         console.log('img-width-height', img.width, img.height)
-
+        console.log('this.imgPaintAuto', this.imgPaintAuto)
         if (this.imgPaintAuto) {
+          console.log('保持图片宽高比不变');
           // 图片宽高比不变，以大的一项铺满，另一方向auto
           const { width, height } = img
+          console.log('图片原始宽高', width, height);
           let paintWidth = 0
           let paintHeight = 0
           let paintX = 0
@@ -248,6 +234,7 @@ class CanvasImgEditor {
             paintWidth = this.canvasWidth / (height / this.canvasHeight)
             paintX = (this.canvasWidth - paintWidth) / 2
           }
+          console.log('paintWidth——————paintHeight',paintWidth, paintHeight);
           this.ctxImg.fillStyle = this.imgPaintAutoBgColor
           this.ctxImg.fillRect(0, 0, this.canvasWidth, this.canvasHeight)
           this.ctxImg.drawImage(img, paintX, paintY, paintWidth, paintHeight);
@@ -260,7 +247,6 @@ class CanvasImgEditor {
       };
       img.onerror = (e) => {
         console.log('图片加载失败', e);
-
       };
     }
   }
@@ -277,6 +263,7 @@ class CanvasImgEditor {
       this.modules.text?.hideTextareaNode()
     }
   }
+
   /**
    * 鼠标点击可编辑图形时，自动修改当前操作类型
    *
@@ -335,6 +322,7 @@ class CanvasImgEditor {
       this.handleScaleMouseDown(e)
     }
   }
+
   /**
    * 初始化鼠标事件,包含 
    * 鼠标事件：mouseDown|mouseMove | mouseUp | mouseLeave
@@ -401,18 +389,18 @@ class CanvasImgEditor {
     });
 
     canvas.addEventListener('mouseleave', () => {
-      console.log('canvas-mouseLeave');
+      console.warn('canvas-mouseLeave');
       if (this.isDrawing) {
         this.isDrawing = false;
         // 文本编辑状态，进入输入框，会触发mouseleave
-        if (this.currentTool === 'text' && this.inTextEdit) {
+        if (this.currentTool === 'text' && this.modules.text && this.modules.text.inTextEdit) {
           return
         }
         this.saveAction(); // 保存当前操作
       }
     });
     canvas.addEventListener('wheel', (e) => {
-      isFunction(e.preventDefault) && e.preventDefault()
+      e.preventDefault()
       this.handleMouseWheel(e)
     })
     canvas.addEventListener('drag', (e) => {
@@ -572,6 +560,7 @@ class CanvasImgEditor {
     }
     return state
   }
+
   // 监听取消撤销状态
   onListenRedoState() {
     const state = this.undoStack.length > 0
@@ -583,6 +572,7 @@ class CanvasImgEditor {
     }
     return state
   }
+
   // 监听复原状态
   onListenClearState(isImmediate) {
     const state = this.actions.length > 0
@@ -594,6 +584,7 @@ class CanvasImgEditor {
     }
     return state
   }
+
   onListenEnlargeState(isImmediate) {
     const state = this.scaleRadio >= this.scaleRadioMax
     if (this.enlargeState !== state) {
@@ -604,6 +595,7 @@ class CanvasImgEditor {
     }
     return state
   }
+
   onListenReduceState(isImmediate) {
     const state = this.scaleRadio <= this.scaleRadioMin
     if (this.reduceState !== state) {
@@ -670,8 +662,8 @@ class CanvasImgEditor {
   // 对历史栈中的图像去重，保留历史栈顺序
   getUniqueShapeList() {
     const { actions } = this
-    let list = []
-    let map = []
+    const list = []
+    const map = []
     let item = null
     for (let len = actions.length, i = len - 1; i >= 0; i--) {
       item = actions[i]

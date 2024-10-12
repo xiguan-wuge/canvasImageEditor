@@ -1,9 +1,6 @@
 import Base from "./base.js"
 import {
-  canvasGlobalIdAdd,
-  insideRect,
-  isPointInEllipseRing,
-  isPointOnThickLine
+  canvasGlobalIdAdd
 } from '../utils.js'
 
 export default class Scribble extends Base {
@@ -12,6 +9,7 @@ export default class Scribble extends Base {
     this.name = 'scribble'
     this.setParent(parent)
   }
+
   /**
    * 涂鸦，初始化一段新的涂鸦信息
    */

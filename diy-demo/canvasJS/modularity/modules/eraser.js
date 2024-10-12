@@ -1,11 +1,11 @@
 import Base from "./base.js"
 import {
-  canvasGlobalIdAdd,
-  insideRect,
-  isPointInEllipseRing,
-  isPointOnThickLine
+  canvasGlobalIdAdd
 } from '../utils.js'
 
+/**
+ * 橡皮擦
+ */
 export default class Eraser extends Base {
   constructor(parent) {
     super()

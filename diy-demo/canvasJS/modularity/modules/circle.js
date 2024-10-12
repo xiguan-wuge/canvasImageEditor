@@ -2,8 +2,7 @@ import Base from "./base.js"
 import {
   canvasGlobalIdAdd,
   insideRect,
-  isPointInEllipseRing,
-  isPointOnThickLine
+  isPointInEllipseRing
 } from '../utils.js'
 
 export default class Circle extends Base {
@@ -138,7 +137,7 @@ export default class Circle extends Base {
     if (parent.currentTool === 'circle') {
       // 先判断当前图像是否符合
       if (parent.currentOperationState === 'add' &&
-        (parent.currentOperationInfo.radiusX == 0
+        (parent.currentOperationInfo.radiusX === 0
           || parent.currentOperationInfo.radiusY === 0)) {
         // 是新增状态且半径为空的圆，需要剔除
         parent.circleList.pop()
@@ -243,14 +242,14 @@ export default class Circle extends Base {
   setCircleEndPointCursor() {
     const parent = this.getParent()
     const { indexChoosePoint } = parent
-    // 'col-resize': 'col-resize', // 基于纵轴左右调整
-    // 'row-resize': 'row-resize', // 基于纵轴上下调整
+    // 'w-resize': 'w-resize', // 基于纵轴左右调整
+    // 's-resize': 's-resize', // 基于横轴上下调整
     // 'nesw-resize': 'nesw-resize', // 基于纵轴东北-西南调整
     // 'nwse-resize': 'nwse-resize', // 基于纵轴西北-东南调整
     if ([0, 2].includes(indexChoosePoint)) {
-      parent.modifyCursor('row-resize')
+      parent.modifyCursor('s-resize')
     } else if ([1, 3].includes(indexChoosePoint)) {
-      parent.modifyCursor('col-resize')
+      parent.modifyCursor('w-resize')
     } else if ([4, 6].includes(indexChoosePoint)) {
       parent.modifyCursor('nwse-resize')
     } else if ([5, 7].includes(indexChoosePoint)) {

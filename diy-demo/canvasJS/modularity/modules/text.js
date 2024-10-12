@@ -1,9 +1,7 @@
 import Base from "./base.js"
 import {
   canvasGlobalIdAdd,
-  insideRect,
-  isPointInEllipseRing,
-  isPointOnThickLine
+  insideRect
 } from '../utils.js'
 
 export default class Text extends Base {
@@ -227,6 +225,7 @@ export default class Text extends Base {
   drawText(item, isHide = false) {
     const parent = this.getParent()
     const { ctx } = parent
+    ctx.globalCompositeOperation = 'source-over';
     ctx.font = `${item.fontSize}px serif`
     ctx.textBaseline = 'top';
 
@@ -234,21 +233,21 @@ export default class Text extends Base {
     let y = item.startY
 
     // 绘制边框
-    // let borderColor = isHide ? 'rgba(0, 0, 0, 0)' : 'rgb(118, 118, 118)'
+    // const borderColor = isHide ? 'rgba(0, 0, 0, 0)' : 'rgb(118, 118, 118)'
     // ctx.strokeStyle = borderColor;
     // ctx.lineWidth = 1;
     // ctx.strokeRect(item.startX - 1, item.startY - 1, metrics.width + 2, metrics.height + 2);
 
     // 绘制文本
-    let fillColor = isHide ? 'rgba(0, 0, 0, 0)' : item.color
+    const fillColor = isHide ? 'rgba(0, 0, 0, 0)' : item.color
     metrics.lines.forEach((line) => {
       ctx.fillStyle = fillColor;
       ctx.fillText(line, item.startX, y);
       y += item.fontSize * item.lineHeight;
     });
     // 返回边框的宽高
-    let width = metrics.width < 2 ? 2 : metrics.width
-    return { width: width, height: metrics.height };
+    const width = metrics.width < 2 ? 2 : metrics.width
+    return { width, height: metrics.height };
   }
   
   /**
@@ -261,7 +260,7 @@ export default class Text extends Base {
     const { ctx } = parent
     const lines = item.text.split('\n');
     const lineMetrics = lines.map(line => this.splitTextIntoLines(line, item));
-    let allLineWidth = lineMetrics.map(line => ctx.measureText(line).width)
+    const allLineWidth = lineMetrics.map(line => ctx.measureText(line).width)
     const maxWidth = Math.max(...allLineWidth)
     const totalHeight = lineMetrics.length * item.fontSize * item.lineHeight;
     return { width: maxWidth, height: totalHeight, lines: lineMetrics.flat() };
@@ -282,12 +281,12 @@ export default class Text extends Base {
 
     for (let i = 1; i < words.length; i++) {
       const word = words[i];
-      const width = ctx.measureText(currentLine + ' ' + word).width;
+      const {width} = ctx.measureText(`${currentLine  } ${  word}`);
       if (item.maxWidth && width > item.maxWidth) {
         lines.push(currentLine);
         currentLine = word;
       } else {
-        currentLine += ' ' + word;
+        currentLine += ` ${  word}`;
       }
     }
     lines.push(currentLine);
@@ -300,12 +299,14 @@ export default class Text extends Base {
   updateTextarea() {
     const parent = this.getParent()
     parent.currentOperationInfo.text = parent.textareaNode.value
-    let { width, height } = this.drawText(parent.currentOperationInfo, true)
-    const ratio = parent.getCanvasRatio()
+    const { width, height } = this.drawText(parent.currentOperationInfo, true)
+    // const ratio = parent.getCanvasRatio()
     parent.currentOperationInfo.width = width
     parent.currentOperationInfo.height = height
-    parent.textareaNode.style.width = `${Math.ceil(width / ratio)}px`
-    parent.textareaNode.style.height = `${Math.ceil(height / ratio)}px`
+    // parent.textareaNode.style.width = `${Math.ceil(width / ratio)}px`
+    // parent.textareaNode.style.height = `${Math.ceil(height / ratio)}px`
+    parent.textareaNode.style.width = `${Math.ceil(width * parent.scaleRadio)}px`
+    parent.textareaNode.style.height = `${Math.ceil(height * parent.scaleRadio)}px`
   }
   
   /**
@@ -322,7 +323,6 @@ export default class Text extends Base {
       position: 'absolute',
       padding: '0px',
       display: 'none',
-      border: '1px bold #000',
       overflow: 'hidden',
       resize: 'none',
       outline: 'none',
@@ -332,7 +332,7 @@ export default class Text extends Base {
       'z-index': 99999,
       'white-space': 'pre',
       width: '2px',
-      height: `${parent.textFontSize}px`,
+      height: `${parent.textFontSize*parent.scaleRadio}px`,
       transform: 'rotate(0deg)',
       'text-align': 'left',
       'line-height': 1,
@@ -343,7 +343,7 @@ export default class Text extends Base {
       'transform-origin': 'left top',
       border: '1px solid light-dark(rgb(118, 118, 118), rgb(133, 133, 133));'
     }
-    let styleStr = Object.keys(textStyleObj).map(item => {
+    const styleStr = Object.keys(textStyleObj).map(item => {
       return `${item}:${textStyleObj[item]};`
     }).join('')
     textarea.setAttribute('style', styleStr);
@@ -366,14 +366,26 @@ export default class Text extends Base {
   showTextareaNode() {
     const parent = this.getParent()
     const { startX, startY, color, text, width, height, fontSize } = parent.currentOperationInfo
-    const ratio = parent.getCanvasRatio()
-
-    parent.textareaNode.style.left = `${startX}px`
-    parent.textareaNode.style.top = `${startY}px`
+    // const ratio = parent.getCanvasRatio()
+    const {scaleRadio} = parent
+    // textarea的定位值需要结合缩放和拖动偏移来计算
+    let topValue = startX*scaleRadio
+    topValue += parent.scaleOffsetX
+    let leftValue = startY*scaleRadio
+    leftValue +=parent.scaleOffsetY
+    parent.textareaNode.style.left = `${topValue}px`
+    parent.textareaNode.style.top = `${leftValue}px`
     parent.textareaNode.style.color = color
-    parent.textareaNode.style.fontSize = `${Math.ceil(fontSize / ratio)}px`
-    parent.textareaNode.style.width = `${Math.ceil(width / ratio)}px`
-    parent.textareaNode.style.height = `${Math.ceil(height / ratio)}px`
+    // 宽高需要结合缩放比例进行计算
+    const widthValue = Math.ceil(width * scaleRadio)
+    const heightValue = Math.ceil(height * scaleRadio)
+    const fontSizeValue = Math.ceil(fontSize * scaleRadio)
+    // parent.textareaNode.style.fontSize = `${Math.ceil(fontSize / ratio)}px`
+    // parent.textareaNode.style.width = `${Math.ceil(width / ratio)}px`
+    // parent.textareaNode.style.height = `${Math.ceil(height / ratio)}px`
+    parent.textareaNode.style.fontSize = `${fontSizeValue}px`
+    parent.textareaNode.style.width = `${widthValue}px`
+    parent.textareaNode.style.height = `${heightValue}px`
     parent.textareaNode.style.display = 'block';
     parent.textareaNode.value = text;
     setTimeout(() => {

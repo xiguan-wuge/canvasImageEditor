@@ -17,6 +17,7 @@ export default class Rect extends Base {
    * 鼠标按下时，判断是新增矩形或者编辑矩形
    */
   handleRectMouseDown() {
+    console.log('handleRectMouseDown');
     const parent = this.getParent()
     this.rectOperationState = ''
     const { startX, startY, rectList } = parent
@@ -25,9 +26,11 @@ export default class Rect extends Base {
       let rect = null
       for (let len = rectList.length, i = len - 1; i >= 0; i--) {
         rect = rectList[i]
+        // 判断是否在端点上
+        // eslint-disable-next-line no-loop-func
         const isNearKeyPoint = rect.endPointList.some((point, index) => {
           if (insideRect(point[0], point[1], rect.endPointWidth, rect.endPointWidth, startX, startY)) {
-            this.indexChoosePoint = index
+            parent.indexChoosePoint = index
             return true
           }
           return false
@@ -55,12 +58,13 @@ export default class Rect extends Base {
       }
     }
     if (!selected) {
+
       this.rectOperationState = 'add'
       const newRect = {
         id: canvasGlobalIdAdd(),
         type: 'rect',
-        startX: startX,
-        startY: startY,
+        startX,
+        startY,
         width: 0,
         height: 0,
         color: parent.currentColor,
@@ -322,13 +326,15 @@ export default class Rect extends Base {
     const parent = this.getParent()
     const { ctx } = parent
     const { endPointWidth, endPointColor } = rect
-    rect?.endPointList.forEach((point) => {
-      ctx.fillStyle = endPointColor;
-      ctx.beginPath();
-      ctx.fillRect(point[0], point[1], endPointWidth, endPointWidth)
-      ctx.fill();
-      ctx.closePath();
-    })
+    if(rect && rect.endPointList) {
+      rect.endPointList.forEach((point) => {
+        ctx.fillStyle = endPointColor;
+        ctx.beginPath();
+        ctx.fillRect(point[0], point[1], endPointWidth, endPointWidth)
+        ctx.fill();
+        ctx.closePath();
+      })
+    }
   }
 
   /**
@@ -337,14 +343,14 @@ export default class Rect extends Base {
   setRectEndPointCursor() {
     const parent = this.getParent()
     const { indexChoosePoint } = parent
-    //   'col-resize': 'col-resize', // 基于纵轴左右调整
-    // 'row-resize': 'row-resize', // 基于纵轴上下调整
+    // 'w-resize': 'w-resize', // 基于纵轴左右调整
+    // 's-resize': 's-resize', // 基于横轴上下调整
     // 'nesw-resize': 'nesw-resize', // 基于纵轴东北-西南调整
     // 'nwse-resize': 'nwse-resize', // 基于纵轴西北-东南调整
     if ([1, 6].includes(indexChoosePoint)) {
-      parent.modifyCursor('row-resize')
+      parent.modifyCursor('s-resize')
     } else if ([3, 4].includes(indexChoosePoint)) {
-      parent.modifyCursor('col-resize')
+      parent.modifyCursor('w-resize')
     } else if ([0, 7].includes(indexChoosePoint)) {
       parent.modifyCursor('nwse-resize')
     } else if ([2, 5].includes(indexChoosePoint)) {
@@ -377,11 +383,13 @@ export default class Rect extends Base {
           return false
         });
         if (isNearKeyPoint) {
+          console.log('在矩形端点');
           this.setRectEndPointCursor(this.indexChoosePoint)
           selectedId = rect.id
           break;
         } else if (inLine(currentX, currentY, rect.pointList, rect)) {
           // 在矩形边上
+          console.log('在矩形边上');
           selectedId = rect.id
           parent.modifyCursor('move')
           break

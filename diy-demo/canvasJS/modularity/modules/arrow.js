@@ -16,6 +16,7 @@ export default class Arrow  extends Base {
     this.name = 'arrow'
     this.setParent(parent)
   }
+
   /**
    * 处理画箭头时的mouseDown事件
    */
@@ -98,6 +99,7 @@ export default class Arrow  extends Base {
     }
     parent.beforeOperationInfo = JSON.parse(JSON.stringify(parent.currentOperationInfo))
   }
+
   /**
    * 鼠标拖动时，绘制箭头
    * @param {number} currentX 
@@ -171,6 +173,7 @@ export default class Arrow  extends Base {
 
     }
   }
+
   /**
    * 修改箭头的起始、结束端点
    * @param {Object} item 箭头信息
@@ -186,6 +189,7 @@ export default class Arrow  extends Base {
       item.endPoint.y = item.endY - (item.startPoint.endPointWidth / 2)
     }
   }
+
   /**
    * 重新绘制箭头
    */
@@ -193,6 +197,7 @@ export default class Arrow  extends Base {
     const parent = this.getParent()
     parent.redrawCanvas()
   }
+
   /**
    * 重新绘制对应箭头
    * @param {Object} arrowInfo 箭头信息
@@ -207,6 +212,7 @@ export default class Arrow  extends Base {
       })
     }
   }
+
   /**
    * 绘制渐变线条的箭头
    * @param {object} item 箭头信息
@@ -306,7 +312,7 @@ export default class Arrow  extends Base {
       // 从后往前遍历，后面绘制的优先级高于前面被绘制的
       for (let len = list.length, i = len - 1; i >= 0; i--) {
         arrow = list[i]
-        const endPointWidth = arrow.startPoint.endPointWidth
+        const {endPointWidth} = arrow.startPoint
         const halfEndPointWidth = endPointWidth/2
         if (insideRect(arrow.startX - halfEndPointWidth, arrow.startY - halfEndPointWidth, endPointWidth, endPointWidth, currentX, currentY)) {
           parent.modifyCursor('move')
