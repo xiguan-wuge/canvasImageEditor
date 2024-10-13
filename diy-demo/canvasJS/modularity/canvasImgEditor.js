@@ -260,8 +260,14 @@ class CanvasImgEditor {
   setCurrentToolType(type) {
     this.currentTool = type
     if (this.currentTool !== 'text') {
-      this.modules.text?.hideTextareaNode()
+      this.saveText()
     }
+  }
+  /**
+   * 状态变更前，确保文本保存了
+   */
+  saveText() {
+    this.modules.text?.hideTextareaNode()
   }
 
   /**
@@ -430,12 +436,6 @@ class CanvasImgEditor {
     return newClickTime - this._lastClickTime < DBCLICK_TIME;
   }
 
-  // 判断是否在矩形内
-  insideRect(rectX, rectY, rectWidth, rectHeight, pointX, pointY) {
-    return (pointX >= rectX && pointX <= rectX + rectWidth)
-      && (pointY >= rectY && pointY <= rectY + rectHeight)
-  }
-
   // 创建用于合并使用的canvas
   createMergedCanvas() {
     const { canvas } = this
@@ -482,6 +482,7 @@ class CanvasImgEditor {
   }
 
   undo() {
+    this.saveText()
     if (this.actions.length > 0) {
       const lastAction = this.actions.pop();
       console.log('this.actions', this.actions);
@@ -523,6 +524,7 @@ class CanvasImgEditor {
   }
 
   redo() {
+    this.saveText()
     if (this.undoStack.length > 0) {
       const redoAction = this.undoStack.pop();
       this.actions.push(redoAction);
@@ -585,6 +587,11 @@ class CanvasImgEditor {
     return state
   }
 
+  /**
+   * 监听放大
+   * @param {Boolean} isImmediate 是否立即监听放大
+   * @returns Boolean 是否允许继续放大
+   */
   onListenEnlargeState(isImmediate) {
     const state = this.scaleRadio >= this.scaleRadioMax
     if (this.enlargeState !== state) {
@@ -596,6 +603,11 @@ class CanvasImgEditor {
     return state
   }
 
+  /**
+   * 监听缩小状态
+   * @param {Boolean} isImmediate  是否立即执行监听
+   * @returns 是否允许继续缩小
+   */
   onListenReduceState(isImmediate) {
     const state = this.scaleRadio <= this.scaleRadioMin
     if (this.reduceState !== state) {
@@ -609,6 +621,7 @@ class CanvasImgEditor {
 
   // 复原
   clear() {
+    this.saveText()
     this.clearCanvas()
     this.actions = []
     this.redoAction = []
@@ -675,8 +688,14 @@ class CanvasImgEditor {
     return list
   }
 
-
+  /**
+   * 图片下载
+   * @param {Boolean} isBlob  是否返回blob格式
+   * @param {String} name 下载图片时的文件名
+   * @returns 
+   */
   download(isBlob = false, name = 'merged_image') {
+    this.saveText()
     return new Promise((resove) => {
       const mergedCanvas = document.createElement('canvas');
       mergedCanvas.width = this.canvasWidth;

@@ -10,7 +10,8 @@ export default class Text extends Base {
     this.name = 'text'
     this.setParent(parent)
     this.inTextEdit = false
-    this.addNewText = false
+    // this.inAddText = false
+    this.textChangedSave = false
   }
 
   /**
@@ -23,7 +24,7 @@ export default class Text extends Base {
    */
   handleTextMouseDown(startX, startY) {
     const parent = this.getParent()
-    if (this.inTextEdit || this.addNewText) {
+    if (this.inTextEdit || this.inAddText) {
       parent.isDrawing = false
       this.inTextEdit = true
       return
@@ -56,7 +57,8 @@ export default class Text extends Base {
         width: 2,
         height: parent.textFontSize - 0
       }
-      this.addNewText = true
+      // this.inAddText = true
+      this.inTextEdit = true
       parent.currentOperationState = 'add'
       parent.currentOperationInfo = newText
       this.showTextareaNode()
@@ -180,10 +182,12 @@ export default class Text extends Base {
    * @returns 
    */
   exitTextEditStatus() {
+    console.log('exitTextEditStatus222222');
+    
     const parent = this.getParent()
-    if (parent.currentTool === 'text' && (this.inTextEdit)) {
+    if ((parent.currentTool === 'text' || this.textChangedSave) && parent.currentOperationInfo && (this.inTextEdit)) {
       this.inTextEdit = false
-      this.addNewText = false
+      // this.inAddText = false
       const beforeText = parent.currentOperationInfo.text
       parent.currentOperationInfo.text = parent.textareaNode.value
       this.hideTextareaNode()
@@ -397,6 +401,14 @@ export default class Text extends Base {
    * 隐藏文本域
    */
   hideTextareaNode() {
+    console.log('hideTextareaNode---');
+    if(this.inTextEdit || this.inAddText) {
+      this.inTextEdit = true
+      this.textChangedSave = true
+      this.exitTextEditStatus()
+      return
+    }
+    this.textChangedSave = false
     const parent = this.getParent()
     if (parent.textareaNode && parent.textareaNode.style.display !== 'none') {
       parent.textareaNode.style.display = 'none'
