@@ -20,6 +20,7 @@ export default class Scribble extends Base {
       id: canvasGlobalIdAdd(),
       list: []
     }
+    parent.scribbleList.push(parent.currentOperationInfo)
   }
 
   /**
