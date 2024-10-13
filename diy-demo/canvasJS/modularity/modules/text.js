@@ -444,9 +444,12 @@ export default class Text extends Base {
    */
   checkTextHover(list, currentX, currentY) {
     let selectedId = -1
+    const parent = this.getParent()
+
     const selectedText = this.getTextAtPosition(currentX, currentY)
     if (selectedText) {
       selectedId = selectedText.id
+      parent.modifyCursor('move')
     }
     return {
       id: selectedId,
