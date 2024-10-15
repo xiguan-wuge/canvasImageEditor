@@ -263,6 +263,7 @@ class CanvasImgEditor {
       this.saveText()
     }
   }
+
   /**
    * 状态变更前，确保文本保存了
    */
@@ -696,6 +697,11 @@ class CanvasImgEditor {
    */
   download(isBlob = false, name = 'merged_image') {
     this.saveText()
+    if(this.hasCurrentShapeID()) {
+      // 若存在编辑状态，取消编辑状态
+      this.setCurrentShapeId()
+      this.checkActiveShape()
+    }
     return new Promise((resove) => {
       const mergedCanvas = document.createElement('canvas');
       mergedCanvas.width = this.canvasWidth;
