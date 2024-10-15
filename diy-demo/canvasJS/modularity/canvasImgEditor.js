@@ -61,6 +61,7 @@ class CanvasImgEditor {
     this.undoState = false // 当前撤销状态，是否允许撤销，默认false
     this.redoState = false // 当前是否允许取消撤销，默认false
     this.clearState = false // 当前是否允许复原，默认false
+    this.clearCanBeUndo = true // 清空操作是否允许撤销
     this.textElements = []; // 用于存储文本元素及其位置信息
     this.ellipses = []; // 存储所有圆/椭圆信息
     this.currentWidth = 2
@@ -521,6 +522,33 @@ class CanvasImgEditor {
       this.onListenRedoState()
       this.onListenClearState()
     }
+    if(this.clearCanBeUndo) {
+      // 删除能被撤销
+      if(this.undoStack.length) {
+        const lastAction = this.undoStack.pop()
+        if(Array.isArray(lastAction)) {
+          this.actions = lastAction
+          console.log('删除被撤销-this.actions',this.actions);
+          // this.currentOperationInfo = lastAction[lastAction.length -1]
+          const uniqueShapeList = this.getUniqueShapeList()
+          let typeList = ''
+          let type = ''
+          uniqueShapeList.forEach(item => {
+            type=item.type
+            typeList = `${type}List`
+            if(this[typeList]) {
+              this[typeList].push(item)
+            }
+          })
+          console.log('this.circleList', this.circleList);
+          
+          this.redrawCanvas()
+          this.onListenUndoState()
+          this.onListenRedoState()
+          this.onListenClearState()
+        }
+      }
+    }
   }
 
   redo() {
@@ -553,7 +581,7 @@ class CanvasImgEditor {
 
   // 监听撤销状态
   onListenUndoState() {
-    const state = this.actions.length > 0
+    const state = this.actions.length > 0 || true
     if (this.undoState !== state) {
       this.undoState = state
       if (isFunction(this.callbackObj.checkUndo)) {
@@ -623,14 +651,24 @@ class CanvasImgEditor {
   clear() {
     this.saveText()
     this.clearCanvas()
-    this.actions = []
-    this.redoAction = []
-    this.undoStack = []
-    Object.values(this.typeAndShapeMap).forEach(key => {
-      this[key] = []
-    })
-    this.restoreScale()
-    this.modules.text?.hideTextareaNode()
+    if(this.clearCanBeUndo) {
+      // 清空允许撤销
+      this.undoStack.push(JSON.parse(JSON.stringify(this.actions)))
+      this.actions = []
+      Object.values(this.typeAndShapeMap).forEach(key => {
+        this[key] = []
+      })
+      // this.restoreScale()
+
+    } else {
+      this.actions = []
+      this.redoAction = []
+      this.undoStack = []
+      Object.values(this.typeAndShapeMap).forEach(key => {
+        this[key] = []
+      })
+      this.restoreScale()
+    }
     this.onListenUndoState()
     this.onListenRedoState()
     this.onListenClearState()
