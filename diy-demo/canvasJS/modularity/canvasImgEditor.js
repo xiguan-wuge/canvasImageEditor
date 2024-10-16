@@ -62,6 +62,8 @@ class CanvasImgEditor {
     this.redoState = false // 当前是否允许取消撤销，默认false
     this.clearState = false // 当前是否允许复原，默认false
     this.clearCanBeUndo = true // 清空操作是否允许撤销
+    this.clearCanBeUndoState = false // 是否清空了，是否能撤销
+    this.clearCanBeRedoState = false // 是否能执行因清空撤销后的取消撤销
     this.textElements = []; // 用于存储文本元素及其位置信息
     this.ellipses = []; // 存储所有圆/椭圆信息
     this.currentWidth = 2
@@ -132,6 +134,8 @@ class CanvasImgEditor {
     this.scaleOffsetY = 0
     this.enlargeState = true
     this.reduceState = true
+    this.scaleBackup = {} // 缩放数据备份
+    this.scaleState = false // 是否缩放了，清空时候判断
 
     this.callbackObj = {} // 注册的事件对象
 
@@ -485,6 +489,49 @@ class CanvasImgEditor {
 
   undo() {
     this.saveText()
+    
+    if(this.clearCanBeUndo) {
+      // 删除能被撤销
+      // 先判断常规撤销
+      if(this.actions.length) {
+        const lastAction = this.actions[this.length -1]
+        if(Array.isArray(lastAction)) {
+          // 撤销的是清空
+          console.log('撤销的是清空');
+        } else {
+          // 常规撤销
+          this.normalUndo()
+        }
+      } else if(this.undoStack.length) {
+        // 清空撤销
+        const lastAction = this.undoStack.pop()
+        if(Array.isArray(lastAction)) {
+          this.actions = lastAction
+          this.undoStack.push(JSON.parse(JSON.stringify(lastAction)));
+          this.clearCanBeUndoState = false
+          console.log('删除被撤销-this.actions',this.actions);
+          this.resetTypeListFromClear()
+          console.log('this.circleList', this.circleList);
+          
+          this.redrawCanvas()
+          this.checkScaleUndo()
+          this.onListenUndoState()
+          this.onListenRedoState()
+          this.onListenClearState()
+          this.onListenEnlargeState()
+          this.onListenReduceState()
+        }
+      }
+    } else {
+      // 常规撤销
+      this.normalUndo()
+    }
+  }
+
+  /**
+   * 常规撤销（不能撤销清空）
+   */
+  normalUndo() {
     if (this.actions.length > 0) {
       const lastAction = this.actions.pop();
       console.log('this.actions', this.actions);
@@ -523,66 +570,65 @@ class CanvasImgEditor {
       this.onListenRedoState()
       this.onListenClearState()
     }
-    if(this.clearCanBeUndo) {
-      // 删除能被撤销
-      if(this.undoStack.length) {
-        const lastAction = this.undoStack.pop()
-        if(Array.isArray(lastAction)) {
-          this.actions = lastAction
-          console.log('删除被撤销-this.actions',this.actions);
-          // this.currentOperationInfo = lastAction[lastAction.length -1]
-          const uniqueShapeList = this.getUniqueShapeList()
-          let typeList = ''
-          let type = ''
-          uniqueShapeList.forEach(item => {
-            type=item.type
-            typeList = `${type}List`
-            if(this[typeList]) {
-              this[typeList].push(item)
-            }
-          })
-          console.log('this.circleList', this.circleList);
-          
-          this.redrawCanvas()
-          this.onListenUndoState()
-          this.onListenRedoState()
-          this.onListenClearState()
-        }
-      }
-    }
   }
 
   redo() {
     this.saveText()
     if (this.undoStack.length > 0) {
       const redoAction = this.undoStack.pop();
-      this.actions.push(redoAction);
-      const { typeAndShapeMap } = this
-      const { type, id } = redoAction
-      let list = []
-
-      if (typeAndShapeMap[type] && this[typeAndShapeMap[type]]) {
-        list = this[typeAndShapeMap[type]]
-      }
-      if (!Array.isArray(list)) {
-        return
-      }
-      const index = list.findIndex(item => item.id === id)
-      if (index > -1) {
-        list.splice(index, 1, redoAction)
+      if(Array.isArray(redoAction)) {
+        this.clearCanBeRedoState = true
+        this.clear()
+        this.clearCanBeRedoState = false
       } else {
-        list.push(redoAction)
+        this.actions.push(redoAction);
+
+        const { typeAndShapeMap } = this
+        const { type, id } = redoAction
+        let list = []
+
+        if (typeAndShapeMap[type] && this[typeAndShapeMap[type]]) {
+          list = this[typeAndShapeMap[type]]
+        }
+        if (!Array.isArray(list)) {
+          return
+        }
+        const index = list.findIndex(item => item.id === id)
+        if (index > -1) {
+          list.splice(index, 1, redoAction)
+        } else {
+          list.push(redoAction)
+        }
       }
+      
       this.redrawCanvas()
       this.onListenRedoState()
       this.onListenUndoState()
       this.onListenClearState()
+      if(this.clearCanBeUndo) {
+        this.onListenEnlargeState()
+        this.onListenReduceState()
+      }
     }
+  }
+
+  /**
+   * 因撤销清空，重置已绘制类型的list
+   */
+  resetTypeListFromClear() {
+    const uniqueShapeList = this.getUniqueShapeList()
+    let typeList = ''
+    uniqueShapeList.forEach(item => {
+      typeList = `${item.type}List`
+      if(this[typeList]) {
+        this[typeList].push(item)
+      }
+    })
   }
 
   // 监听撤销状态
   onListenUndoState() {
-    const state = this.actions.length > 0 || true
+    const state = this.actions.length > 0 || this.clearCanBeUndoState
     if (this.undoState !== state) {
       this.undoState = state
       if (isFunction(this.callbackObj.checkUndo)) {
@@ -594,7 +640,7 @@ class CanvasImgEditor {
 
   // 监听取消撤销状态
   onListenRedoState() {
-    const state = this.undoStack.length > 0
+    const state = this.undoStack.length > 0 && !this.clearCanBeUndoState
     if (this.redoState !== state) {
       this.redoState = state
       if (isFunction(this.callbackObj.checkRedo)) {
@@ -653,13 +699,25 @@ class CanvasImgEditor {
     this.saveText()
     this.clearCanvas()
     if(this.clearCanBeUndo) {
-      // 清空允许撤销
-      this.undoStack.push(JSON.parse(JSON.stringify(this.actions)))
-      this.actions = []
-      Object.values(this.typeAndShapeMap).forEach(key => {
-        this[key] = []
-      })
-      // this.restoreScale()
+      // if(this.clearCanBeRedoState) {
+      //   // 由取消撤销引起的清空
+      //   this.clearCanBeRedoState = false
+        
+      // }  else {
+        // 清空允许撤销
+        this.undoStack.push(JSON.parse(JSON.stringify(this.actions)))
+        this.clearCanBeUndoState = true
+        this.currentOperationInfo = null
+        this.setCurrentShapeId()
+        this.actions = []
+        Object.values(this.typeAndShapeMap).forEach(key => {
+          this[key] = []
+        })
+        this.setScaleBackup()
+        
+      // }
+      
+      this.restoreScale()
 
     } else {
       this.actions = []
@@ -674,6 +732,8 @@ class CanvasImgEditor {
     this.onListenRedoState()
     this.onListenClearState()
   }
+
+  
 
   // 恢复默认配置
   resetConfig() {
@@ -866,6 +926,41 @@ class CanvasImgEditor {
       this.translateCanvas(offsetX, offsetY, newScaleRadio, true)
       this.onListenEnlargeState()
       this.onListenReduceState()
+    }
+  }
+
+  /**
+   * 设置缩放备份
+   */
+  setScaleBackup() {
+    // 缩放信息备份
+    this.scaleBackup = {
+      scaleOriginX:this.scaleOriginX,
+      scaleOriginY:this.scaleOriginY,
+      scaleRadio: this.scaleRadio,
+      scaleOffsetX: this.scaleOffsetX,
+      scaleOffsetY: this.scaleOffsetY 
+    }
+    // 是否需要缩放
+    this.scaleState = this.scaleOriginX !== 0
+      || this.scaleOriginY !== 0
+      || this.scaleRadio !== 1
+      || this.scaleOffsetX !== 0
+      || this.scaleOffsetY !== 0
+  }
+
+  /**
+   * 缩放撤销
+   */
+  checkScaleUndo() {
+    if(this.scaleState) {
+      Object.keys(this.scaleBackup).forEach(key => {
+        this[key] = this.scaleBackup[key]
+      })
+      this.setCanvasScaleStyle(this.scaleOffsetX, this.scaleOffsetY, this.scaleRadio)
+
+      this.scaleState = false
+      this.scaleBackup = {}
     }
   }
 
