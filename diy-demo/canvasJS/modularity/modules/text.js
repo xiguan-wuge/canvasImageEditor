@@ -401,7 +401,6 @@ export default class Text extends Base {
    * 隐藏文本域
    */
   hideTextareaNode() {
-    console.log('hideTextareaNode---');
     if(this.inTextEdit || this.inAddText) {
       this.inTextEdit = true
       this.textChangedSave = true
