@@ -31,6 +31,7 @@ const defaultConfig = {
   scaleOffsetY: 0,
   currentShapeId: -1, // 当前激活的图形
   changeToolTypeAuto: true, // 是否允许在编辑过程中自动切换操作类型（通过鼠标点击圆、矩形、箭头、之间切换类型）
+  clearCanBeUndo: false, // 清空是否允许再撤销
   hoverActiveShapeId: -1, // 非绘图状态下，鼠标移动时hover的图形ID
   hoverActiveShapeType: '', // 非绘图状态下，鼠标移动时hover的图形类型
 }
@@ -61,7 +62,7 @@ class CanvasImgEditor {
     this.undoState = false // 当前撤销状态，是否允许撤销，默认false
     this.redoState = false // 当前是否允许取消撤销，默认false
     this.clearState = false // 当前是否允许复原，默认false
-    this.clearCanBeUndo = true // 清空操作是否允许撤销
+    this.clearCanBeUndo = options?.clearCanBeUndo !== undefined ? options?.clearCanBeUndo : defaultConfig.clearCanBeUndo // 清空操作是否允许撤销
     this.clearCanBeUndoState = false // 是否清空了，是否能撤销
     this.clearCanBeRedoState = false // 是否能执行因清空撤销后的取消撤销
     this.textElements = []; // 用于存储文本元素及其位置信息
@@ -807,8 +808,46 @@ class CanvasImgEditor {
       const mergedCtx = mergedCanvas.getContext('2d');
       mergedCtx.drawImage(this.canvasImg, 0, 0);
       mergedCtx.drawImage(this.canvas, 0, 0);
-      // 导出合并后的canvas为图片
-      mergedCanvas.toBlob((blob) => {
+      if(mergedCanvas.toBlob) {
+        // 导出合并后的canvas为图片
+        mergedCanvas.toBlob((blob) => {
+          if (isBlob) {
+            resove(blob)
+          } else {
+            const url = URL.createObjectURL(blob);
+            console.log('下载的图片链接', url);
+            const a = document.createElement('a');
+            a.href = url;
+            const fileName = name
+            a.download = fileName; // 可以指定文件名
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url); // 释放URL对象
+            resove()
+          }
+
+        });
+      } else {
+        console.log(2222);
+        // 获取 base64 编码的字符串  
+        const dataURL = mergedCanvas.toDataURL('image/png');  
+          
+        // 移除 URL 的前缀，只保留编码后的数据部分  
+        const base64Data = dataURL.replace(/^data:image\/(png|jpeg);base64,/, "");  
+          
+        // 将 base64 字符串解码为二进制数据  
+        const binaryString = atob(base64Data);  
+          
+        // 将二进制数据转换为 Uint8Array  
+        const {length} = binaryString;  
+        const bytes = new Uint8Array(length);  
+        for (let i = 0; i < length; i++) {  
+          bytes[i] = binaryString.charCodeAt(i);  
+        }  
+          
+        // 创建 Blob 对象  
+        const blob = new Blob([bytes], { type: 'image/png' }); 
         if (isBlob) {
           resove(blob)
         } else {
@@ -824,8 +863,8 @@ class CanvasImgEditor {
           URL.revokeObjectURL(url); // 释放URL对象
           resove()
         }
-
-      });
+      }
+      
     })
 
   }
