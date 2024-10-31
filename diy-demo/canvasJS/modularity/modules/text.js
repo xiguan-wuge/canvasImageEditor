@@ -10,8 +10,8 @@ export default class Text extends Base {
     this.name = 'text'
     this.setParent(parent)
     this.inTextEdit = false
-    // this.inAddText = false
     this.textChangedSave = false
+    this.textAddTimestamp = 0 // 记录下新增文本时的时间戳，用于处理新文本后，触发了mouseup事件，阻止输入框关闭
   }
 
   /**
@@ -22,16 +22,17 @@ export default class Text extends Base {
    * @param {number} startY 鼠标Y位置
    * @returns 
    */
-  handleTextMouseDown(startX, startY) {
+  handleTextMouseDown(startX, startY, e) {
     const parent = this.getParent()
-    if (this.inTextEdit || this.inAddText) {
-      parent.isDrawing = false
+    if (this.inTextEdit) {
+      parent.setIsDrawing(false) // 再次点击，退出文本编辑状态
       this.inTextEdit = true
       return
     }
     if (!parent.textareaNode) {
       this.createTextarea()
     }
+    parent.setIsDrawing(true)
     const selectedText = this.getTextAtPosition(startX, startY);
     if (selectedText) {
       parent.currentOperationInfo = selectedText
@@ -57,12 +58,11 @@ export default class Text extends Base {
         width: 2,
         height: parent.textFontSize - 0
       }
-      // this.inAddText = true
       this.inTextEdit = true
       parent.currentOperationState = 'add'
       parent.currentOperationInfo = newText
+      this.textAddTimestamp = Math.floor(e.timeStamp) 
       this.showTextareaNode()
-      parent.isDrawing = false
     }
   }
 
@@ -74,7 +74,7 @@ export default class Text extends Base {
    */
   handleTextMouseMove(currentX, currentY) {
     const parent = this.getParent()
-    if (!parent.isDrawing) {
+    if (!parent.isDrawing || this.inTextEdit ) {
       return
     }
     const { currentOperationInfo } = parent
@@ -96,7 +96,14 @@ export default class Text extends Base {
   /**
    * 鼠标抬起时，判断文本编辑
    */
-  handleTextMouseUp() {
+  handleTextMouseUp(e) {
+    // 火狐浏览器下，mouseup后创建textarea并聚焦，会触发mouseup事件，但chrome下不会触发mouseup,需抹平差异
+    if(this.textAddTimestamp && Math.floor(e.timeStamp) - this.textAddTimestamp < 1000) {
+      this.textAddTimestamp = 0
+      return
+    }
+    this.textAddTimestamp = 0
+
     const parent = this.getParent()
     const newClickTime = new Date().getTime();
     if (this.inTextEdit) {
@@ -108,7 +115,7 @@ export default class Text extends Base {
         this.handleTextEditAgainOrMove(parent.currentOperationInfo, true)
       } else {
         // 选中但未拖动
-        parent.isDrawing = false
+        parent.setIsDrawing(false)
         parent.modifyCursor('auto')
       }
       parent._lastClickTime = newClickTime;
@@ -117,7 +124,7 @@ export default class Text extends Base {
     } else if (parent.currentOperationState === 'add') {
       this.inTextEdit = true
     } else if (parent.isDrawing || parent.currentOperationState === 'move') {
-      parent.isDrawing = false
+      parent.setIsDrawing(false)
       parent.saveAction()
     }
   }
@@ -167,8 +174,8 @@ export default class Text extends Base {
       this.inTextEdit = true
       parent.redrawCanvas()
       setTimeout(() => {
-        parent.textareaNode.focus()
-      }, 300)
+        this.setTextareaFoucs()
+      }, 100)
     } else {
       // 拖动文本
       parent.currentOperationInfo = selectedText
@@ -182,12 +189,10 @@ export default class Text extends Base {
    * @returns 
    */
   exitTextEditStatus() {
-    console.log('exitTextEditStatus222222');
     
     const parent = this.getParent()
     if ((parent.currentTool === 'text' || this.textChangedSave) && parent.currentOperationInfo && (this.inTextEdit)) {
       this.inTextEdit = false
-      // this.inAddText = false
       const beforeText = parent.currentOperationInfo.text
       parent.currentOperationInfo.text = parent.textareaNode.value
       this.hideTextareaNode()
@@ -325,7 +330,7 @@ export default class Text extends Base {
     textarea.className = 'canvas-textarea';
     const textStyleObj = {
       position: 'absolute',
-      padding: '0px',
+      padding: '4px',
       display: 'none',
       overflow: 'hidden',
       resize: 'none',
@@ -345,7 +350,8 @@ export default class Text extends Base {
       'font-family': 'serif',
       'font-weight': 'normal',
       'transform-origin': 'left top',
-      border: '1px solid light-dark(rgb(118, 118, 118), rgb(133, 133, 133));'
+      border: '1px solid #171717',
+      'caret-color': '#ffffff' // 光标颜色
     }
     const styleStr = Object.keys(textStyleObj).map(item => {
       return `${item}:${textStyleObj[item]};`
@@ -361,7 +367,7 @@ export default class Text extends Base {
       if (e.key === 'Enter') {
         parent.textareaNode.style.height = `${parent.currentOperationInfo.height + parent.currentOperationInfo.fontSize - 0}px`
       }
-    });
+    }); 
   }
 
   /**
@@ -377,6 +383,9 @@ export default class Text extends Base {
     topValue += parent.scaleOffsetX
     let leftValue = startY*scaleRadio
     leftValue +=parent.scaleOffsetY
+    // 输入框添加内边距
+    topValue -= 4
+    leftValue -= 4
     parent.textareaNode.style.left = `${topValue}px`
     parent.textareaNode.style.top = `${leftValue}px`
     parent.textareaNode.style.color = color
@@ -393,15 +402,23 @@ export default class Text extends Base {
     parent.textareaNode.style.display = 'block';
     parent.textareaNode.value = text;
     setTimeout(() => {
-      parent.textareaNode.focus()
-    }, 30)
+      this.setTextareaFoucs()
+    }, 300)
+  }
+
+  /**
+   * 使文本域聚焦
+   */
+  setTextareaFoucs() {
+    const parent = this.getParent()
+    parent.textareaNode.focus()
   }
 
   /**
    * 隐藏文本域
    */
   hideTextareaNode() {
-    if(this.inTextEdit || this.inAddText) {
+    if(this.inTextEdit) {
       this.inTextEdit = true
       this.textChangedSave = true
       this.exitTextEditStatus()

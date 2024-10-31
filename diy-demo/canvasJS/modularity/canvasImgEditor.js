@@ -81,6 +81,7 @@ class CanvasImgEditor {
     this.endPointColor = '#fff' // 默认端点填充颜色
     this.imgPaintAuto = options.imgPaintAuto || false
     this.imgPaintAutoBgColor = options.imgPaintAutoBgColor || 'blue'
+    this.outsideClickAllowList = options.outsideClickAllowList || []
 
     this.typeAndShapeMap = {
       'arrow': 'arrowList',
@@ -265,9 +266,7 @@ class CanvasImgEditor {
    */
   setCurrentToolType(type) {
     this.currentTool = type
-    if (this.currentTool !== 'text') {
-      this.saveText()
-    }
+    this.saveText()
   }
 
   /**
@@ -324,7 +323,7 @@ class CanvasImgEditor {
     } else if (currentTool === 'eraser') {
       this.modules.eraser.handleEraserMouseDown()
     } else if (currentTool === 'text') {
-      this.modules.text.handleTextMouseDown(this.startX, this.startY)
+      this.modules.text.handleTextMouseDown(this.startX, this.startY, e)
     } else if (currentTool === 'rect') {
       this.modules.rect.handleRectMouseDown()
     } else if (currentTool === 'circle') {
@@ -386,7 +385,7 @@ class CanvasImgEditor {
       console.log('canvas-mouseUp');
       const { currentTool } = this
       if (currentTool === 'text') {
-        this.modules.text.handleTextMouseUp()
+        this.modules.text.handleTextMouseUp(e)
       } else if (this.isDrawing) {
         this.isDrawing = false;
         this.modules.arrow.handleArrowMouseUp()
@@ -414,6 +413,10 @@ class CanvasImgEditor {
     });
     canvas.addEventListener('wheel', (e) => {
       e.preventDefault()
+      // 编辑状态中，禁用缩放
+      if(this.isDrawing || this.modules?.text.inTextEdit) {
+        return 
+      }
       this.handleMouseWheel(e)
     })
     canvas.addEventListener('drag', (e) => {
@@ -430,6 +433,45 @@ class CanvasImgEditor {
         this.undo()
       }
     });
+    // this.setOutsideClick() 
+  }
+
+  setOutsideClick() {
+    this.outsideClickFn  = (e) => {
+      let isClickOk = false
+      console.log('outsideClickFn', e.target);
+      if(this.canvas.contains(e.target)) {
+        this.modules?.text.setTextareaFoucs()
+        isClickOk = true
+      }
+      if(!isClickOk && this.outsideClickAllowList.length) {
+        this.outsideClickAllowList.forEach(key => {
+          const dom = document.querySelector(key)
+          if(dom && dom.contains(e.target)) {
+            this.modules?.text.setTextareaFoucs()
+            isClickOk = true
+          }
+        })
+      }
+      if(isClickOk) {
+        console.log('点击内容是合理的')
+      } else {
+        console.log('点击了外部')
+        if (this.currentTool === 'text') {
+          this.saveText()
+        }
+      }
+      
+    }
+    document.addEventListener('click', this.outsideClickFn);
+  }
+
+  /**
+   * 设置是否在编辑状态中
+   * @param {boolean} val 是否在编辑状态中，默认false 
+   */
+  setIsDrawing(val=false) {
+    this.isDrawing = val
   }
 
   /**
@@ -724,6 +766,7 @@ class CanvasImgEditor {
       this.actions = []
       this.redoAction = []
       this.undoStack = []
+      this.currentOperationInfo = null // 清空当前操作数据，以免重绘时将最后一项又绘制上去
       Object.values(this.typeAndShapeMap).forEach(key => {
         this[key] = []
       })
