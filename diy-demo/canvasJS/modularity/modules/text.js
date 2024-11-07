@@ -272,7 +272,13 @@ export default class Text extends Base {
     const allLineWidth = lineMetrics.map(line => ctx.measureText(line).width)
     const maxWidth = Math.max(...allLineWidth)
     const totalHeight = lineMetrics.length * item.fontSize * item.lineHeight;
-    return { width: maxWidth, height: totalHeight, lines: lineMetrics.flat() };
+    let lineList = []
+    if(lineMetrics.flat) { // IE 不支持Array.flat
+      lineList = lineMetrics.flat()
+    } else {
+      lineList = lineMetrics.reduce((acc, val) => acc.concat(val), [])
+    }
+    return { width: maxWidth, height: totalHeight, lines:  lineList};
   }
   
   /**
@@ -314,8 +320,8 @@ export default class Text extends Base {
     parent.currentOperationInfo.height = height
     // parent.textareaNode.style.width = `${Math.ceil(width / ratio)}px`
     // parent.textareaNode.style.height = `${Math.ceil(height / ratio)}px`
-    parent.textareaNode.style.width = `${Math.ceil(width * parent.scaleRadio)}px`
-    parent.textareaNode.style.height = `${Math.ceil(height * parent.scaleRadio)}px`
+    parent.textareaNode.style.width = `${Math.ceil(width * parent.scaleRadio + 1)}px` // +1px fix:IE下宽度不够导致文本换行
+    parent.textareaNode.style.height = `${Math.ceil(height * parent.scaleRadio + 1)}px`
   }
   
   /**
@@ -351,7 +357,7 @@ export default class Text extends Base {
       'font-weight': 'normal',
       'transform-origin': 'left top',
       border: '1px solid #171717',
-      'caret-color': '#ffffff' // 光标颜色
+      'caret-color': '#171717', // 光标颜色
     }
     const styleStr = Object.keys(textStyleObj).map(item => {
       return `${item}:${textStyleObj[item]};`
@@ -411,7 +417,7 @@ export default class Text extends Base {
    */
   setTextareaFoucs() {
     const parent = this.getParent()
-    parent.textareaNode.focus()
+    parent.textareaNode?.focus()
   }
 
   /**

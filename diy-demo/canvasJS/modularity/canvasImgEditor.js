@@ -265,15 +265,16 @@ class CanvasImgEditor {
    * @memberof CanvasImgEditor
    */
   setCurrentToolType(type) {
-    this.currentTool = type
     this.saveText()
+    this.currentTool = type
+    
   }
 
   /**
    * 状态变更前，确保文本保存了
    */
   saveText() {
-    this.modules.text?.hideTextareaNode()
+    this.modules.text?.exitTextEditStatus()
   }
 
   /**
@@ -433,38 +434,8 @@ class CanvasImgEditor {
         this.undo()
       }
     });
-    // this.setOutsideClick() 
   }
 
-  setOutsideClick() {
-    this.outsideClickFn  = (e) => {
-      let isClickOk = false
-      console.log('outsideClickFn', e.target);
-      if(this.canvas.contains(e.target)) {
-        this.modules?.text.setTextareaFoucs()
-        isClickOk = true
-      }
-      if(!isClickOk && this.outsideClickAllowList.length) {
-        this.outsideClickAllowList.forEach(key => {
-          const dom = document.querySelector(key)
-          if(dom && dom.contains(e.target)) {
-            this.modules?.text.setTextareaFoucs()
-            isClickOk = true
-          }
-        })
-      }
-      if(isClickOk) {
-        console.log('点击内容是合理的')
-      } else {
-        console.log('点击了外部')
-        if (this.currentTool === 'text') {
-          this.saveText()
-        }
-      }
-      
-    }
-    document.addEventListener('click', this.outsideClickFn);
-  }
 
   /**
    * 设置是否在编辑状态中
