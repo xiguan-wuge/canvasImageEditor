@@ -478,4 +478,27 @@ export default class Text extends Base {
       type: 'text'
     }
   }
+
+  /**
+   * 实时更新文字颜色
+   */
+  changeTextareaFontColor() {
+    const parent = this.getParent()
+    if(parent.currentTool === 'text' && this.inTextEdit) {
+      parent.textareaNode.style.color = parent.currentColor
+      parent.currentOperationInfo.colorBackup = parent.currentColor
+    }
+  }
+
+  /**
+   * 实时更新文字大小
+   */
+  changeTextareaFontSize() {
+    const parent = this.getParent()
+    if(parent.currentTool === 'text' && this.inTextEdit) {
+      parent.textareaNode.style.fontSize = `${parent.textFontSize}px`
+      parent.currentOperationInfo.fontSize = parent.textFontSize
+      this.updateTextarea()
+    }
+  }
 }

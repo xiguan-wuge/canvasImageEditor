@@ -469,6 +469,9 @@ class CanvasImgEditor {
   // 设置字体大小
   setTextFontSize(fontSize) {
     this.textFontSize = fontSize - 0
+    if(this.currentTool === 'text') {
+      this.modules?.text?.changeTextareaFontSize()
+    }
   }
 
   // 设置字体宽度
@@ -889,6 +892,9 @@ class CanvasImgEditor {
    */
   changeColor(val) {
     this.currentColor = val
+    if(this.currentTool === 'text') {
+      this.modules?.text?.changeTextareaFontColor()
+    }
   }
 
   /**
